@@ -114,6 +114,31 @@ func MacToHID(code uint16) (uint16, bool) { h, ok := macToHID[code]; return h, o
 func HIDToMac(hid uint16) (uint16, bool)  { m, ok := hidToMac[hid]; return m, ok }
 func HIDToWin(hid uint16) (uint16, bool)  { s, ok := hidToWin[hid]; return s, ok }
 
+// winToHID is the inverse of hidToWin. Where two HID codes share a scancode
+// (backslash / non-US hash) the lower HID code wins.
+var winToHID = func() map[uint16]uint16 {
+	m := make(map[uint16]uint16, len(hidToWin))
+	for hid := uint16(0); hid < 0x100; hid++ {
+		if sc, ok := hidToWin[hid]; ok {
+			if _, dup := m[sc]; !dup {
+				m[sc] = hid
+			}
+		}
+	}
+	return m
+}()
+
+// WinToHID maps a Windows scancode (0xE0xx for extended keys) to a HID usage.
+// Low-level hooks sometimes flag keys like NumLock or RShift as extended, so
+// the plain scancode is tried as a fallback.
+func WinToHID(sc uint16) (uint16, bool) {
+	if h, ok := winToHID[sc]; ok {
+		return h, true
+	}
+	h, ok := winToHID[sc&0xFF]
+	return h, ok
+}
+
 // IsModifier reports whether a HID code is a modifier key.
 func IsModifier(hid uint16) bool { return hid >= 0xE0 && hid <= 0xE7 }
 

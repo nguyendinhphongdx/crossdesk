@@ -1,12 +1,12 @@
-// Package server runs on the machine with the physical keyboard/mouse. When
-// the cursor is pushed past the configured screen edge it swallows local input
-// and streams it to the connected client until the cursor comes back.
+// Package server runs on the host: the machine whose physical keyboard/mouse
+// is shared. Screens are placed on a grid layout; pushing the cursor past an
+// edge moves it to the neighbouring screen (another client or back home).
 package server
 
 import (
-	"errors"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,11 +14,16 @@ import (
 	"sharedevice/internal/proto"
 )
 
+// Cell is a position on the layout grid.
+type Cell struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+}
+
 type Config struct {
-	Listen   string
+	SelfID   string
 	Password string
-	Side     string  // where the client screen is: left, right, top, bottom
-	Speed    float64 // pointer speed multiplier on the client
+	Speed    float64 // pointer speed multiplier on clients
 	Verbose  bool
 }
 
@@ -30,45 +35,138 @@ type Platform struct {
 }
 
 type client struct {
+	id     string
+	name   string
 	conn   *proto.Conn
 	out    chan proto.Msg
 	w, h   int32
-	name   string
 	closed bool
 }
+
+type dir int
+
+const (
+	right dir = iota
+	left
+	down
+	up
+)
+
+var dirDelta = map[dir]Cell{right: {1, 0}, left: {-1, 0}, down: {0, 1}, up: {0, -1}}
 
 type Server struct {
 	cfg Config
 	pf  Platform
 
 	mu          sync.Mutex
-	cl          *client
-	remote      bool
+	active      bool
+	layout      map[string]Cell
+	clients     map[string]*client
+	cur         *client // nil = cursor is on the host
 	vx, vy      float64
 	local       capture.Bounds
-	localKeys   map[uint16]bool // keys held down on the server before switching
+	localKeys   map[uint16]bool // keys held on the host before switching away
 	buttonsHeld int
 }
 
-func New(cfg Config, pf Platform) (*Server, error) {
-	switch cfg.Side {
-	case "left", "right", "top", "bottom":
-	default:
-		return nil, errors.New("side must be left, right, top or bottom")
-	}
+func New(cfg Config, pf Platform) *Server {
 	if cfg.Speed <= 0 {
 		cfg.Speed = 1
 	}
-	return &Server{cfg: cfg, pf: pf, localKeys: map[uint16]bool{}}, nil
+	return &Server{cfg: cfg, pf: pf, layout: map[string]Cell{}, clients: map[string]*client{}, localKeys: map[uint16]bool{}}
 }
 
-// Handle processes one captured event. It returns true if the event must be
+// SetPassword changes the password for future connections.
+func (s *Server) SetPassword(p string) {
+	s.mu.Lock()
+	s.cfg.Password = p
+	s.mu.Unlock()
+}
+
+func (s *Server) SetSpeed(v float64) {
+	s.mu.Lock()
+	if v > 0 {
+		s.cfg.Speed = v
+	}
+	s.mu.Unlock()
+}
+
+// SetActive turns host mode on or off. Turning it off returns the cursor home
+// and drops all clients.
+func (s *Server) SetActive(on bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.active == on {
+		return
+	}
+	s.active = on
+	if !on {
+		s.abandon()
+		for id, c := range s.clients {
+			s.closeClient(c)
+			delete(s.clients, id)
+		}
+		log.Printf("host mode off")
+	} else {
+		log.Printf("host mode on")
+	}
+}
+
+func (s *Server) SetLayout(l map[string]Cell) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.layout = make(map[string]Cell, len(l))
+	for k, v := range l {
+		s.layout[k] = v
+	}
+}
+
+// Connected returns the IDs of connected clients.
+func (s *Server) Connected() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	ids := make([]string, 0, len(s.clients))
+	for id := range s.clients {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// neighbor returns the device placed next to `from` in direction d.
+func (s *Server) neighbor(from string, d dir) string {
+	c, ok := s.layout[from]
+	if !ok {
+		if from != s.cfg.SelfID {
+			return ""
+		}
+		c = Cell{} // host defaults to origin
+	}
+	t := Cell{c.X + dirDelta[d].X, c.Y + dirDelta[d].Y}
+	for id, cell := range s.layout {
+		if cell == t && id != from {
+			return id
+		}
+	}
+	return ""
+}
+
+func ratio(v, lo, hi float64) float64 {
+	if hi <= lo {
+		return 0.5
+	}
+	return min(max((v-lo)/(hi-lo), 0), 1)
+}
+
+// Handle processes one captured event and returns true if it must be
 // swallowed locally.
 func (s *Server) Handle(ev capture.Event) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if !s.active {
+		return false
+	}
 
-	if !s.remote {
+	if s.cur == nil {
 		switch ev.Kind {
 		case capture.Key:
 			if ev.Down {
@@ -83,9 +181,29 @@ func (s *Server) Handle(ev capture.Event) bool {
 				s.buttonsHeld--
 			}
 		case capture.Move:
-			// Don't switch while dragging: the button-up would land on the wrong machine.
-			if s.cl != nil && s.buttonsHeld == 0 && s.atEdge(ev) {
-				s.enter(ev)
+			// Never switch mid-drag: the button-up would land on the wrong machine.
+			if s.buttonsHeld > 0 {
+				return false
+			}
+			b := s.pf.Bounds()
+			var d dir
+			var r float64
+			switch {
+			case ev.DX > 0 && ev.X >= b.MaxX-1:
+				d, r = right, ratio(ev.Y, b.MinY, b.MaxY)
+			case ev.DX < 0 && ev.X <= b.MinX:
+				d, r = left, ratio(ev.Y, b.MinY, b.MaxY)
+			case ev.DY > 0 && ev.Y >= b.MaxY-1:
+				d, r = down, ratio(ev.X, b.MinX, b.MaxX)
+			case ev.DY < 0 && ev.Y <= b.MinY:
+				d, r = up, ratio(ev.X, b.MinX, b.MaxX)
+			default:
+				return false
+			}
+			if c := s.clients[s.neighbor(s.cfg.SelfID, d)]; c != nil {
+				s.local = b
+				s.pf.Freeze(true)
+				s.enter(c, d, r)
 				return true
 			}
 		}
@@ -96,143 +214,114 @@ func (s *Server) Handle(ev capture.Event) bool {
 	case capture.Move:
 		s.vx += ev.DX * s.cfg.Speed
 		s.vy += ev.DY * s.cfg.Speed
-		if s.leaving() {
-			s.leave(true)
-			return true
+		w, h := float64(s.cur.w-1), float64(s.cur.h-1)
+		var d dir
+		var r float64
+		out := true
+		switch {
+		case s.vx > w:
+			d, r = right, ratio(s.vy, 0, h)
+		case s.vx < 0:
+			d, r = left, ratio(s.vy, 0, h)
+		case s.vy > h:
+			d, r = down, ratio(s.vx, 0, w)
+		case s.vy < 0:
+			d, r = up, ratio(s.vx, 0, w)
+		default:
+			out = false
 		}
-		s.clamp()
-		s.send(proto.Msg{Type: proto.MouseMove, X: int32(s.vx), Y: int32(s.vy)})
+		if out {
+			n := s.neighbor(s.cur.id, d)
+			if n == s.cfg.SelfID {
+				s.goHome(d, r, true)
+				return true
+			}
+			if c := s.clients[n]; c != nil {
+				s.send(s.cur, proto.Msg{Type: proto.Leave})
+				s.enter(c, d, r)
+				return true
+			}
+		}
+		s.vx = min(max(s.vx, 0), w)
+		s.vy = min(max(s.vy, 0), h)
+		s.send(s.cur, proto.Msg{Type: proto.MouseMove, X: int32(s.vx), Y: int32(s.vy)})
 	case capture.Button:
-		s.send(proto.Msg{Type: proto.MouseButton, Button: byte(ev.Button), Down: ev.Down})
+		s.send(s.cur, proto.Msg{Type: proto.MouseButton, Button: byte(ev.Button), Down: ev.Down})
 	case capture.Scroll:
-		s.send(proto.Msg{Type: proto.Wheel, X: ev.ScrollX, Y: ev.ScrollY})
+		s.send(s.cur, proto.Msg{Type: proto.Wheel, X: ev.ScrollX, Y: ev.ScrollY})
 	case capture.Key:
 		// A key pressed before switching must be released locally, or it sticks.
 		if !ev.Down && s.localKeys[ev.Key] {
 			delete(s.localKeys, ev.Key)
 			return false
 		}
-		s.send(proto.Msg{Type: proto.Key, Key: ev.Key, Down: ev.Down})
+		s.send(s.cur, proto.Msg{Type: proto.Key, Key: ev.Key, Down: ev.Down})
 	}
 	return true
 }
 
-func (s *Server) atEdge(ev capture.Event) bool {
-	b := s.pf.Bounds()
-	switch s.cfg.Side {
-	case "right":
-		return ev.DX > 0 && ev.X >= b.MaxX-1
-	case "left":
-		return ev.DX < 0 && ev.X <= b.MinX
-	case "bottom":
-		return ev.DY > 0 && ev.Y >= b.MaxY-1
-	case "top":
-		return ev.DY < 0 && ev.Y <= b.MinY
+// enter moves the virtual cursor onto client c, arriving while travelling in
+// direction d at relative position r along the edge.
+func (s *Server) enter(c *client, d dir, r float64) {
+	w, h := float64(c.w-1), float64(c.h-1)
+	switch d {
+	case right:
+		s.vx, s.vy = 0, r*h
+	case left:
+		s.vx, s.vy = w, r*h
+	case down:
+		s.vx, s.vy = r*w, 0
+	case up:
+		s.vx, s.vy = r*w, h
 	}
-	return false
+	s.cur = c
+	s.send(c, proto.Msg{Type: proto.Enter, X: int32(s.vx), Y: int32(s.vy)})
+	s.send(c, proto.Msg{Type: proto.MouseMove, X: int32(s.vx), Y: int32(s.vy)})
+	log.Printf("-> %s", c.name)
 }
 
-func ratio(v, lo, hi float64) float64 {
-	if hi <= lo {
-		return 0.5
-	}
-	r := (v - lo) / (hi - lo)
-	return min(max(r, 0), 1)
-}
-
-func (s *Server) enter(ev capture.Event) {
-	b := s.pf.Bounds()
-	s.local = b
-	w, h := float64(s.cl.w), float64(s.cl.h)
-	switch s.cfg.Side {
-	case "right":
-		s.vx, s.vy = 0, ratio(ev.Y, b.MinY, b.MaxY)*(h-1)
-	case "left":
-		s.vx, s.vy = w-1, ratio(ev.Y, b.MinY, b.MaxY)*(h-1)
-	case "bottom":
-		s.vx, s.vy = ratio(ev.X, b.MinX, b.MaxX)*(w-1), 0
-	case "top":
-		s.vx, s.vy = ratio(ev.X, b.MinX, b.MaxX)*(w-1), h-1
-	}
-	s.remote = true
-	s.pf.Freeze(true)
-	s.send(proto.Msg{Type: proto.Enter, X: int32(s.vx), Y: int32(s.vy)})
-	s.send(proto.Msg{Type: proto.MouseMove, X: int32(s.vx), Y: int32(s.vy)})
-	log.Printf("-> switched to %s", s.cl.name)
-}
-
-func (s *Server) leaving() bool {
-	switch s.cfg.Side {
-	case "right":
-		return s.vx < 0
-	case "left":
-		return s.vx > float64(s.cl.w-1)
-	case "bottom":
-		return s.vy < 0
-	case "top":
-		return s.vy > float64(s.cl.h-1)
-	}
-	return false
-}
-
-func (s *Server) clamp() {
-	s.vx = min(max(s.vx, 0), float64(s.cl.w-1))
-	s.vy = min(max(s.vy, 0), float64(s.cl.h-1))
-}
-
-// leave returns control to the local machine. Caller holds s.mu.
-func (s *Server) leave(notify bool) {
-	if !s.remote {
+// goHome returns the cursor to the host. Caller holds s.mu.
+func (s *Server) goHome(d dir, r float64, notify bool) {
+	if s.cur == nil {
 		return
 	}
-	s.remote = false
+	if notify {
+		s.send(s.cur, proto.Msg{Type: proto.Leave})
+	}
+	s.cur = nil
 	b := s.local
 	var x, y float64
-	if s.cl != nil {
-		w, h := float64(s.cl.w), float64(s.cl.h)
-		switch s.cfg.Side {
-		case "right":
-			x, y = b.MaxX-2, b.MinY+ratio(s.vy, 0, h-1)*(b.MaxY-b.MinY-1)
-		case "left":
-			x, y = b.MinX+1, b.MinY+ratio(s.vy, 0, h-1)*(b.MaxY-b.MinY-1)
-		case "bottom":
-			x, y = b.MinX+ratio(s.vx, 0, w-1)*(b.MaxX-b.MinX-1), b.MaxY-2
-		case "top":
-			x, y = b.MinX+ratio(s.vx, 0, w-1)*(b.MaxX-b.MinX-1), b.MinY+1
-		}
+	switch d {
+	case right:
+		x, y = b.MinX+1, b.MinY+r*(b.MaxY-b.MinY-1)
+	case left:
+		x, y = b.MaxX-2, b.MinY+r*(b.MaxY-b.MinY-1)
+	case down:
+		x, y = b.MinX+r*(b.MaxX-b.MinX-1), b.MinY+1
+	case up:
+		x, y = b.MinX+r*(b.MaxX-b.MinX-1), b.MaxY-2
 	}
 	s.pf.Freeze(false)
-	if s.cl != nil {
-		s.pf.Warp(x, y)
-	}
-	if notify {
-		s.send(proto.Msg{Type: proto.Leave})
-	}
-	log.Printf("<- back to local")
+	s.pf.Warp(x, y)
+	log.Printf("<- home")
 }
 
-// send queues a message for the client without blocking the event tap.
-func (s *Server) send(m proto.Msg) {
-	if s.cl == nil || s.cl.closed {
+// send queues a message without blocking the input hook.
+func (s *Server) send(c *client, m proto.Msg) {
+	if c == nil || c.closed {
 		return
 	}
 	select {
-	case s.cl.out <- m:
+	case c.out <- m:
 	default:
 		if s.cfg.Verbose {
-			log.Printf("output queue full, dropping %v", m.Type)
+			log.Printf("queue full for %s, dropping %v", c.name, m.Type)
 		}
 	}
 }
 
-// Serve accepts clients forever. Only one client is active at a time; a new
-// connection replaces the old one.
-func (s *Server) Serve() error {
-	ln, err := net.Listen("tcp", s.cfg.Listen)
-	if err != nil {
-		return err
-	}
-	log.Printf("listening on %s (client is on the %s)", ln.Addr(), s.cfg.Side)
+// Serve accepts client connections on ln until it is closed.
+func (s *Server) Serve(ln net.Listener) error {
 	for {
 		c, err := ln.Accept()
 		if err != nil {
@@ -243,48 +332,62 @@ func (s *Server) Serve() error {
 }
 
 func (s *Server) handleConn(c net.Conn) {
+	s.mu.Lock()
+	active, pw := s.active, s.cfg.Password
+	s.mu.Unlock()
+	if !active || pw == "" {
+		c.Close()
+		return
+	}
 	if tc, ok := c.(*net.TCPConn); ok {
 		tc.SetNoDelay(true)
 	}
-	conn, err := proto.ServerHandshake(c, s.cfg.Password)
+	conn, err := proto.ServerHandshake(c, pw)
 	if err != nil {
-		log.Printf("%s: handshake: %v", c.RemoteAddr(), err)
 		c.Close()
 		return
 	}
 	hello, err := conn.Recv(10 * time.Second)
 	if err != nil || hello.Type != proto.Hello || hello.W <= 0 || hello.H <= 0 {
-		log.Printf("%s: rejected: %v", c.RemoteAddr(), errOr(err, "bad hello"))
+		log.Printf("%s rejected: %v", c.RemoteAddr(), err)
 		conn.Close()
 		return
 	}
+	id, name, _ := strings.Cut(hello.Name, "\n")
 	if err := conn.Send(proto.Msg{Type: proto.Hello}); err != nil {
 		conn.Close()
 		return
 	}
-	cl := &client{conn: conn, out: make(chan proto.Msg, 4096), w: hello.W, h: hello.H, name: hello.Name}
-	log.Printf("client %q connected from %s (%dx%d)", cl.name, c.RemoteAddr(), cl.w, cl.h)
+	cl := &client{id: id, name: name, conn: conn, out: make(chan proto.Msg, 4096), w: hello.W, h: hello.H}
 
 	s.mu.Lock()
-	if old := s.cl; old != nil {
-		s.leave(false)
+	if !s.active {
+		s.mu.Unlock()
+		conn.Close()
+		return
+	}
+	if old := s.clients[id]; old != nil {
+		if s.cur == old {
+			s.abandon()
+		}
 		s.closeClient(old)
 	}
-	s.cl = cl
+	s.clients[id] = cl
 	s.mu.Unlock()
+	log.Printf("client %q connected from %s (%dx%d)", name, c.RemoteAddr(), cl.w, cl.h)
 
 	done := make(chan struct{})
-	go func() { // writer
+	go func() {
 		for m := range cl.out {
-			if err := conn.Send(m); err != nil {
+			if conn.Send(m) != nil {
 				conn.Close()
 				break
 			}
 		}
-		for range cl.out { // drain until closed
+		for range cl.out {
 		}
 	}()
-	go func() { // keepalive
+	go func() {
 		t := time.NewTicker(2 * time.Second)
 		defer t.Stop()
 		for {
@@ -293,43 +396,44 @@ func (s *Server) handleConn(c net.Conn) {
 				return
 			case <-t.C:
 				s.mu.Lock()
-				if s.cl == cl {
-					s.send(proto.Msg{Type: proto.Ping})
-				}
+				s.send(cl, proto.Msg{Type: proto.Ping})
 				s.mu.Unlock()
 			}
 		}
 	}()
 	for {
 		if _, err := conn.Recv(8 * time.Second); err != nil {
-			log.Printf("client %q disconnected: %v", cl.name, err)
+			log.Printf("client %q disconnected: %v", name, err)
 			break
 		}
 	}
 	close(done)
-	conn.Close()
 	s.mu.Lock()
-	if s.cl == cl {
-		s.leave(false)
-		s.closeClient(cl)
-		s.cl = nil
+	if s.clients[id] == cl {
+		if s.cur == cl {
+			s.abandon()
+		}
+		delete(s.clients, id)
 	}
+	s.closeClient(cl)
 	s.mu.Unlock()
 }
 
-// closeClient closes the client's queue. Caller holds s.mu (send also runs
-// under s.mu, so no send can race with the close).
-func (s *Server) closeClient(cl *client) {
-	if !cl.closed {
-		cl.closed = true
-		close(cl.out)
-		cl.conn.Close()
+// closeClient closes the queue. Caller holds s.mu, as do all senders.
+func (s *Server) closeClient(c *client) {
+	if !c.closed {
+		c.closed = true
+		close(c.out)
+		c.conn.Close()
 	}
 }
 
-func errOr(err error, msg string) any {
-	if err != nil {
-		return err
+// abandon gives the cursor back to the host without moving it, used when the
+// active client vanishes. Caller holds s.mu.
+func (s *Server) abandon() {
+	if s.cur != nil {
+		s.cur = nil
+		s.pf.Freeze(false)
+		log.Printf("<- home (client gone)")
 	}
-	return msg
 }

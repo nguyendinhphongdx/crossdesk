@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Share Device</title>
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --text: #1b1d22; --muted: #6b7280; --line: #e3e5ea;
+  --accent: #2563eb; --accent-soft: #e6eefe; --ok: #15803d; --ok-soft: #e3f4e8;
+  --warn: #b45309; --warn-soft: #fdf1df; --bad: #b91c1c; --bad-soft: #fde8e8;
+  --cell: #eef0f4; --cell-hot: #dbe6fd; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111317; --panel: #1a1d23; --text: #e8eaee; --muted: #9aa1ad; --line: #2b2f37;
+    --accent: #6d9cff; --accent-soft: #1f2a44; --ok: #4ade80; --ok-soft: #173023;
+    --warn: #fbbf24; --warn-soft: #362a12; --bad: #f87171; --bad-soft: #3a1b1b;
+    --cell: #20242b; --cell-hot: #26355a; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+header h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
+header .spacer { flex: 1; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+input[type=text], input[type=password] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 10px; min-width: 0; }
+button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px;
+  padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.danger { color: var(--bad); }
+button:disabled { opacity: .5; cursor: default; }
+.badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--cell); color: var(--muted); }
+.badge.host { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.badge.ok { background: var(--ok-soft); color: var(--ok); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+.badge.bad { background: var(--bad-soft); color: var(--bad); }
+.notice { border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+.notice.warn { background: var(--warn-soft); color: var(--warn); }
+.notice.bad { background: var(--bad-soft); color: var(--bad); }
+.muted { color: var(--muted); }
+.devices { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.dev { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; gap: 12px; align-items: flex-start; }
+.dev.offline { opacity: .55; }
+.dev .icon { width: 38px; height: 38px; border-radius: 9px; background: var(--cell); display: grid; place-items: center; flex: none; }
+.dev .info { flex: 1; min-width: 0; }
+.dev .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev .meta { font-size: 12px; color: var(--muted); }
+.dev .tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0 8px; }
+.grid-wrap { overflow-x: auto; padding-bottom: 4px; }
+.grid { display: grid; gap: 8px; width: max-content; margin: 0 auto; }
+.cell { width: 128px; height: 84px; border-radius: 10px; background: var(--cell); border: 2px dashed transparent;
+  display: grid; place-items: center; transition: background .1s; }
+.cell.hot { background: var(--cell-hot); border-color: var(--accent); }
+.tile { width: 116px; height: 74px; border-radius: 8px; background: var(--panel); border: 2px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: grab;
+  user-select: none; touch-action: none; font-size: 12px; text-align: center; padding: 4px; box-shadow: var(--shadow); }
+.tile.host { border-color: var(--accent); }
+.tile.offline { opacity: .5; }
+.tile .tname { font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile.ghost { position: fixed; pointer-events: none; z-index: 10; opacity: .9; cursor: grabbing; transform: rotate(-2deg); }
+.tile.dragging { opacity: .25; }
+.tray { margin-top: 12px; min-height: 92px; border-radius: 10px; border: 2px dashed var(--line); padding: 8px;
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tray.hot { border-color: var(--accent); background: var(--cell-hot); }
+.tray .empty { color: var(--muted); font-size: 13px; padding: 0 8px; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+details summary { cursor: pointer; color: var(--muted); }
+pre.logs { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--bg); border-radius: 8px;
+  padding: 10px; max-height: 260px; overflow: auto; white-space: pre-wrap; margin: 10px 0 0; }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--text); color: var(--bg);
+  padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+.toast.show { opacity: 1; }
+label.opt { display: flex; gap: 8px; align-items: center; }
+@media (max-width: 560px) { .cell { width: 96px; height: 66px; } .tile { width: 86px; height: 56px; font-size: 11px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="9" height="7" rx="1.5"/><rect x="13" y="13" width="9" height="7" rx="1.5"/><path d="M11 7.5h4a2 2 0 0 1 2 2V13"/><path d="m15 11 2 2 2-2"/></svg>
+    <h1>Share Device</h1>
+    <span id="selfRole" class="badge"></span>
+    <span class="spacer"></span>
+    <button id="quitBtn" class="danger" title="Tắt ứng dụng trên máy này">Thoát</button>
+  </header>
+
+  <div id="notices"></div>
+
+  <section class="panel" id="setupPanel">
+    <h2>Máy này</h2>
+    <div class="row" style="margin-bottom:10px">
+      <span class="muted" style="width:110px">Tên thiết bị</span>
+      <input type="text" id="nameInput" maxlength="40" style="flex:1;max-width:280px">
+      <button id="nameBtn">Lưu</button>
+    </div>
+    <div class="row">
+      <span class="muted" style="width:110px">Mật khẩu nhóm</span>
+      <input type="password" id="pwInput" placeholder="Giống nhau trên mọi máy" style="flex:1;max-width:280px" autocomplete="new-password">
+      <button id="pwBtn" class="primary">Đặt mật khẩu</button>
+    </div>
+    <div class="hint" id="pwHint">Các máy dùng cùng mật khẩu sẽ tự nhận ra nhau. Mật khẩu cũng dùng để mã hoá phím bấm gửi qua mạng.</div>
+  </section>
+
+  <section class="panel">
+    <div class="row" style="justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0">Thiết bị trong mạng</h2>
+      <button id="stopBtn">Dừng chia sẻ</button>
+    </div>
+    <div class="devices" id="devices"></div>
+    <div class="hint">Đang tự quét mạng LAN. Chọn <b>Làm máy chủ</b> cho máy có bàn phím và chuột bạn muốn dùng, các máy còn lại tự động thành máy khách.</div>
+  </section>
+
+  <section class="panel">
+    <h2>Sắp xếp màn hình</h2>
+    <div class="grid-wrap"><div class="grid" id="grid"></div></div>
+    <div class="tray" id="tray"></div>
+    <div class="hint">Kéo thả các màn hình cho giống vị trí thật trên bàn. Đẩy chuột qua cạnh màn hình để sang máy nằm cạnh. Kéo xuống khay bên dưới để bỏ ra.</div>
+  </section>
+
+  <section class="panel">
+    <h2>Tuỳ chọn</h2>
+    <label class="opt" style="margin-bottom:10px"><input type="checkbox" id="swapOpt">
+      Đổi Cmd ⇄ Ctrl khi điều khiển giữa Mac và Windows (Cmd+C trên Mac = Ctrl+C trên Windows và ngược lại)</label>
+    <div class="row"><span class="muted">Tốc độ chuột trên máy khách</span>
+      <input type="range" id="speedOpt" min="0.5" max="3" step="0.1" style="width:180px"><span id="speedVal"></span></div>
+    <details style="margin-top:14px"><summary>Nhật ký</summary><pre class="logs" id="logs"></pre></details>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const token = (() => {
+  const m = location.hash.match(/token=([0-9a-f]+)/);
+  try {
+    if (m) { sessionStorage.setItem('sdToken', m[1]); history.replaceState(null, '', location.pathname); return m[1]; }
+    return sessionStorage.getItem('sdToken') || '';
+  } catch (e) { return m ? m[1] : ''; }
+})();
+
+const $ = (id) => document.getElementById(id);
+let st = null, dragging = null, editingOptions = false;
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+async function api(path, body) {
+  const r = await fetch('/api/' + path, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: { 'X-Token': token, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || (r.status === 401 ? 'Phiên hết hạn — mở lại ứng dụng' : 'Lỗi ' + r.status));
+  return j;
+}
+
+const osIcon = (os) => os === 'darwin'
+  ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-label="macOS"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.9-.9-3.1-.8C6.8 7.3 5.3 8.2 4.5 9.6c-1.7 2.9-.4 7.2 1.2 9.6.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8s1.9.8 3.1.8c1.3 0 2.1-1.2 2.9-2.4.9-1.3 1.3-2.6 1.3-2.7 0 0-2.6-1-2.7-3.9zM14.1 5.5c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4z"/></svg>'
+  : os === 'windows'
+  ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-label="Windows"><path d="M3 5.1 10.4 4v7.1H3V5.1zm0 13.8 7.4 1.1v-7H3v5.9zm8.2 1.2L21 21.5V13h-9.8v7.1zm0-16.2V11H21V2.5l-9.8 1.4z"/></svg>'
+  : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>';
+
+const osName = (os) => ({ darwin: 'macOS', windows: 'Windows', linux: 'Linux' }[os] || os);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function roleBadges(d) {
+  const b = [];
+  if (!d.self && !d.trusted) b.push('<span class="badge bad">Khác mật khẩu</span>');
+  if (d.trusted && d.role === 'host') b.push('<span class="badge host">Máy chủ</span>');
+  if (d.trusted && d.role === 'client') b.push(d.connected ? '<span class="badge ok">Đã kết nối</span>' : '<span class="badge warn">Đang kết nối…</span>');
+  if (!d.online) b.push('<span class="badge">Ngoại tuyến</span>');
+  return b.join('');
+}
+
+function renderNotices() {
+  const n = [];
+  if (!st.hasPassword) n.push('<div class="notice warn">Bước 1: đặt <b>mật khẩu nhóm</b> giống nhau trên tất cả các máy (Mac và Windows) để chúng nhận ra nhau.</div>');
+  if (st.captureError === 'missing-permission') n.push('<div class="notice warn">macOS chưa cấp quyền <b>Trợ năng (Accessibility)</b> cho Share Device, nên máy này chưa làm máy chủ được. <button id="permBtn">Mở yêu cầu cấp quyền</button><br><span style="font-size:12px">Vào System Settings → Privacy &amp; Security → Accessibility, bật Share Device. Có thể phải bật cả Input Monitoring.</span></div>');
+  else if (st.captureError) n.push('<div class="notice bad">Không bắt được chuột/bàn phím: ' + esc(st.captureError) + '</div>');
+  if (st.self.role === 'client' && !st.self.connected) {
+    const host = st.devices.find((d) => d.id === st.host);
+    const why = !host ? 'chưa thấy máy chủ trong mạng' : !host.online ? 'máy chủ đang ngoại tuyến' : (st.clientError || 'đang kết nối');
+    n.push('<div class="notice warn">Chưa kết nối tới máy chủ: ' + esc(why) + '.</div>');
+  }
+  $('notices').innerHTML = n.join('');
+  const pb = $('permBtn');
+  if (pb) pb.onclick = () => api('permission', {}).then((r) => toast(r.trusted ? 'Đã có quyền' : 'Hãy bật quyền trong System Settings')).catch((e) => toast(e.message));
+}
+
+function renderDevices() {
+  $('devices').innerHTML = st.devices.map((d) => {
+    const canHost = st.hasPassword && d.trusted && d.online && d.role !== 'host';
+    return `<div class="dev ${d.online ? '' : 'offline'}">
+      <div class="icon">${osIcon(d.os)}</div>
+      <div class="info">
+        <div class="name">${esc(d.name)}${d.self ? ' <span class="muted" style="font-weight:400">(máy này)</span>' : ''}</div>
+        <div class="meta">${osName(d.os)}${d.ip ? ' · ' + esc(d.ip) : ''}${d.w ? ' · ' + d.w + '×' + d.h : ''}</div>
+        <div class="tags">${roleBadges(d)}</div>
+        ${canHost ? `<button class="primary" data-host="${esc(d.id)}">Làm máy chủ</button>` : ''}
+      </div></div>`;
+  }).join('');
+  if (st.devices.length === 1) $('devices').insertAdjacentHTML('beforeend',
+    '<div class="dev" style="border-style:dashed"><div class="info muted">Đang tìm máy khác… Hãy mở Share Device trên máy kia, đặt cùng mật khẩu và cho phép qua tường lửa (cổng UDP 24802, TCP 24800).</div></div>');
+  document.querySelectorAll('[data-host]').forEach((b) => b.onclick = () =>
+    api('host', { ID: b.dataset.host }).then(() => { toast('Đã chọn máy chủ'); refresh(); }).catch((e) => toast(e.message)));
+  $('stopBtn').disabled = !st.host;
+}
+
+function tileHTML(d) {
+  return `<div class="tile ${d.role === 'host' ? 'host' : ''} ${d.online ? '' : 'offline'}" data-id="${esc(d.id)}">
+    ${osIcon(d.os)}<div class="tname">${esc(d.name)}</div>
+    <div class="muted" style="font-size:11px">${d.role === 'host' ? 'Máy chủ' : d.self ? 'Máy này' : (d.online ? '' : 'Ngoại tuyến')}</div></div>`;
+}
+
+function renderLayout() {
+  if (dragging) return;
+  const placed = st.devices.filter((d) => d.cell && d.trusted);
+  let minX = 0, maxX = 0, minY = 0, maxY = 0;
+  placed.forEach((d) => { minX = Math.min(minX, d.cell.x); maxX = Math.max(maxX, d.cell.x); minY = Math.min(minY, d.cell.y); maxY = Math.max(maxY, d.cell.y); });
+  minX -= 1; maxX += 1; minY -= 1; maxY += 1;
+  while (maxX - minX + 1 < 5) { minX--; if (maxX - minX + 1 < 5) maxX++; }
+  const cols = maxX - minX + 1, rows = maxY - minY + 1;
+  const g = $('grid');
+  g.style.gridTemplateColumns = `repeat(${cols}, auto)`;
+  let html = '';
+  for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+    const d = placed.find((p) => p.cell.x === x && p.cell.y === y);
+    html += `<div class="cell" data-x="${x}" data-y="${y}">${d ? tileHTML(d) : ''}</div>`;
+  }
+  g.innerHTML = html;
+  const unplaced = st.devices.filter((d) => d.trusted && !d.cell);
+  $('tray').innerHTML = unplaced.length ? unplaced.map(tileHTML).join('') : '<span class="empty">Khay: thiết bị chưa đặt vào sơ đồ sẽ nằm ở đây</span>';
+  document.querySelectorAll('.tile').forEach((t) => t.addEventListener('pointerdown', startDrag));
+}
+
+function dropTargetAt(x, y) {
+  const el = document.elementFromPoint(x, y);
+  return el && (el.closest('.cell') || el.closest('.tray'));
+}
+
+function startDrag(e) {
+  if (!st.hasPassword) { toast('Hãy đặt mật khẩu nhóm trước'); return; }
+  e.preventDefault();
+  const tile = e.currentTarget, rect = tile.getBoundingClientRect();
+  const ghost = tile.cloneNode(true);
+  ghost.classList.add('ghost'); ghost.style.width = rect.width + 'px'; ghost.style.height = rect.height + 'px';
+  document.body.appendChild(ghost);
+  tile.classList.add('dragging');
+  const off = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  dragging = { id: tile.dataset.id, ghost, tile, hot: null };
+  const move = (ev) => {
+    ghost.style.left = (ev.clientX - off.x) + 'px'; ghost.style.top = (ev.clientY - off.y) + 'px';
+    const t = dropTargetAt(ev.clientX, ev.clientY);
+    if (t !== dragging.hot) { dragging.hot && dragging.hot.classList.remove('hot'); t && t.classList.add('hot'); dragging.hot = t; }
+  };
+  const up = (ev) => {
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+    const target = dropTargetAt(ev.clientX, ev.clientY);
+    const id = dragging.id;
+    ghost.remove(); dragging = null;
+    if (target) applyDrop(id, target); else renderLayout();
+  };
+  move(e);
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+}
+
+function applyDrop(id, target) {
+  const layout = {};
+  st.devices.forEach((d) => { if (d.cell) layout[d.id] = { x: d.cell.x, y: d.cell.y }; });
+  const from = layout[id];
+  if (target.classList.contains('tray')) {
+    if (id === st.host) { toast('Không thể bỏ máy chủ ra khỏi sơ đồ'); renderLayout(); return; }
+    delete layout[id];
+  } else {
+    const to = { x: +target.dataset.x, y: +target.dataset.y };
+    const other = Object.keys(layout).find((k) => k !== id && layout[k].x === to.x && layout[k].y === to.y);
+    if (other) { if (from) layout[other] = from; else delete layout[other]; } // swap places
+    layout[id] = to;
+  }
+  // Optimistic update so the tile doesn't jump back while saving.
+  st.devices.forEach((d) => { d.cell = layout[d.id] || null; });
+  renderLayout();
+  api('layout', { Layout: layout }).then(refresh).catch((e) => { toast(e.message); refresh(); });
+}
+
+function renderOptions() {
+  if (editingOptions) return;
+  $('swapOpt').checked = st.swapCmdCtrl;
+  $('speedOpt').value = st.speed;
+  $('speedVal').textContent = '×' + Number(st.speed).toFixed(1);
+}
+
+function render() {
+  const r = st.self.role;
+  $('selfRole').className = 'badge ' + (r === 'host' ? 'host' : r === 'client' && st.self.connected ? 'ok' : '');
+  $('selfRole').textContent = r === 'host' ? 'Máy chủ' : r === 'client' ? (st.self.connected ? 'Máy khách · đã kết nối' : 'Máy khách') : 'Chưa chia sẻ';
+  if (document.activeElement !== $('nameInput')) $('nameInput').value = st.self.name;
+  $('pwBtn').textContent = st.hasPassword ? 'Đổi mật khẩu' : 'Đặt mật khẩu';
+  $('pwBtn').classList.toggle('primary', !st.hasPassword);
+  renderNotices(); renderDevices(); renderLayout(); renderOptions();
+  const logs = $('logs'), atBottom = logs.scrollTop + logs.clientHeight >= logs.scrollHeight - 4;
+  logs.textContent = (st.logs || []).join('\n');
+  if (atBottom) logs.scrollTop = logs.scrollHeight;
+}
+
+async function refresh() {
+  try { st = await api('status'); render(); }
+  catch (e) { $('notices').innerHTML = '<div class="notice bad">Mất kết nối với ứng dụng: ' + esc(e.message) + '</div>'; }
+}
+
+$('pwBtn').onclick = () => {
+  const pw = $('pwInput').value;
+  api('password', { Password: pw }).then(() => { $('pwInput').value = ''; toast('Đã lưu mật khẩu'); refresh(); }).catch((e) => toast(e.message));
+};
+$('pwInput').onkeydown = (e) => { if (e.key === 'Enter') $('pwBtn').click(); };
+$('nameBtn').onclick = () => api('name', { Name: $('nameInput').value }).then(() => { toast('Đã đổi tên'); refresh(); }).catch((e) => toast(e.message));
+$('nameInput').onkeydown = (e) => { if (e.key === 'Enter') $('nameBtn').click(); };
+$('stopBtn').onclick = () => api('host', { ID: '' }).then(() => { toast('Đã dừng chia sẻ'); refresh(); }).catch((e) => toast(e.message));
+$('quitBtn').onclick = () => { if (confirm('Tắt Share Device trên máy này?')) api('quit', {}).then(() => { document.body.innerHTML = '<main><p>Đã tắt Share Device. Có thể đóng tab này.</p></main>'; }).catch((e) => toast(e.message)); };
+const saveOptions = () => api('options', { SwapCmdCtrl: $('swapOpt').checked, Speed: +$('speedOpt').value }).then(refresh).catch((e) => toast(e.message));
+$('swapOpt').onchange = saveOptions;
+$('speedOpt').oninput = () => { editingOptions = true; $('speedVal').textContent = '×' + Number($('speedOpt').value).toFixed(1); };
+$('speedOpt').onchange = () => { editingOptions = false; saveOptions(); };
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

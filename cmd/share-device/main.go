@@ -1,112 +1,113 @@
-// share-device: share one keyboard and mouse/trackpad between computers on a LAN.
-//
-//	Mac (has the keyboard):   share-device server -password SECRET -side right
-//	Windows:                  share-device client -server 192.168.1.10:24800 -password SECRET
+// Share Device: share one keyboard and mouse/trackpad between computers on a LAN.
+// Run it on every machine; it opens a control page in the browser where you
+// pick the host and arrange the screens.
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
 	"flag"
-	"fmt"
+	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
+	"strconv"
+	"time"
 
-	"sharedevice/internal/capture"
-	"sharedevice/internal/client"
-	"sharedevice/internal/inject"
-	"sharedevice/internal/server"
+	"sharedevice/internal/agent"
+	"sharedevice/internal/web"
 )
 
-const defaultPort = "24800"
+const uiPort = 24801
 
-func usage() {
-	fmt.Fprintf(os.Stderr, `Usage:
-  share-device server [flags]   run on the computer whose keyboard/mouse you want to share
-  share-device client [flags]   run on the computer you want to control
-
-Run "share-device server -h" or "share-device client -h" for flags.
-`)
-	os.Exit(2)
+type uiInfo struct {
+	Port  int    `json:"port"`
+	Token string `json:"token"`
 }
+
+func uiInfoPath() string { return filepath.Join(agent.ConfigDir(), "ui.json") }
 
 func main() {
+	noBrowser := flag.Bool("no-browser", false, "don't open the control page on start")
+	flag.Parse()
+
+	os.MkdirAll(agent.ConfigDir(), 0o700)
+	ring := &web.LogRing{}
+	writers := []io.Writer{ring}
+	if f, err := os.OpenFile(filepath.Join(agent.ConfigDir(), "share-device.log"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600); err == nil {
+		writers = append(writers, f)
+	}
+	if fi, err := os.Stderr.Stat(); err == nil && fi.Mode()&os.ModeCharDevice != 0 {
+		writers = append(writers, os.Stderr)
+	}
+	log.SetOutput(io.MultiWriter(writers...))
 	log.SetFlags(log.Ltime)
-	if len(os.Args) < 2 {
-		usage()
-	}
-	switch os.Args[1] {
-	case "server":
-		runServer(os.Args[2:])
-	case "client":
-		runClient(os.Args[2:])
-	default:
-		usage()
-	}
-}
 
-func passwordOrEnv(p string) string {
-	if p == "" {
-		p = os.Getenv("SHARE_DEVICE_PASSWORD")
-	}
-	if p == "" {
-		log.Fatal("a password is required (-password or SHARE_DEVICE_PASSWORD); keystrokes are encrypted with it")
-	}
-	return p
-}
-
-func runServer(args []string) {
-	fs := flag.NewFlagSet("server", flag.ExitOnError)
-	listen := fs.String("listen", ":"+defaultPort, "address to listen on")
-	password := fs.String("password", "", "shared password (or env SHARE_DEVICE_PASSWORD)")
-	side := fs.String("side", "right", "which side of this screen the other computer is on: left, right, top, bottom")
-	speed := fs.Float64("speed", 1.5, "pointer speed multiplier on the other computer")
-	verbose := fs.Bool("v", false, "verbose logging")
-	fs.Parse(args)
-
-	cfg := server.Config{Listen: *listen, Password: passwordOrEnv(*password), Side: *side, Speed: *speed, Verbose: *verbose}
-	srv, err := server.New(cfg, server.Platform{Freeze: capture.Freeze, Warp: capture.Warp, Bounds: capture.ScreenBounds})
+	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(uiPort))
 	if err != nil {
-		log.Fatal(err)
-	}
-	if runtime.GOOS == "darwin" && !capture.Trusted(true) {
-		log.Print("Accessibility permission is missing. Enable it for this terminal in System Settings > Privacy & Security > Accessibility, then run again.")
-		os.Exit(1)
-	}
-	printAddresses(*listen)
-	go func() { log.Fatal(srv.Serve()) }()
-	log.Fatal(capture.Run(srv.Handle))
-}
-
-func runClient(args []string) {
-	fs := flag.NewFlagSet("client", flag.ExitOnError)
-	addr := fs.String("server", "", "server address, e.g. 192.168.1.10 or 192.168.1.10:24800")
-	password := fs.String("password", "", "shared password (or env SHARE_DEVICE_PASSWORD)")
-	host, _ := os.Hostname()
-	name := fs.String("name", host, "name shown on the server")
-	swap := fs.Bool("swap-cmd-ctrl", runtime.GOOS == "windows", "map Mac Command to Ctrl (Cmd+C = copy) and Ctrl to the Windows key")
-	verbose := fs.Bool("v", false, "verbose logging")
-	fs.Parse(args)
-	if *addr == "" {
-		log.Fatal("-server is required")
-	}
-	if _, _, err := net.SplitHostPort(*addr); err != nil {
-		*addr = net.JoinHostPort(*addr, defaultPort)
-	}
-	inj, err := inject.New()
-	if err != nil {
-		log.Fatal(err)
-	}
-	cfg := client.Config{Server: *addr, Password: passwordOrEnv(*password), Name: *name, SwapCmdCtrl: *swap, Verbose: *verbose}
-	log.Fatal(client.Run(cfg, inj))
-}
-
-func printAddresses(listen string) {
-	_, port, _ := net.SplitHostPort(listen)
-	addrs, _ := net.InterfaceAddrs()
-	for _, a := range addrs {
-		if ip, ok := a.(*net.IPNet); ok && ip.IP.To4() != nil && !ip.IP.IsLoopback() {
-			log.Printf("on the other computer run:  share-device client -server %s:%s -password ...", ip.IP, port)
+		// Already running: just bring up its page.
+		if b, err := os.ReadFile(uiInfoPath()); err == nil {
+			var info uiInfo
+			if json.Unmarshal(b, &info) == nil {
+				openBrowser(pageURL(info))
+				return
+			}
 		}
+		log.Fatalf("UI port %d is busy: %v", uiPort, err)
+	}
+
+	tok := make([]byte, 16)
+	rand.Read(tok)
+	info := uiInfo{Port: uiPort, Token: hex.EncodeToString(tok)}
+	if b, err := json.Marshal(info); err == nil {
+		os.WriteFile(uiInfoPath(), b, 0o600)
+	}
+
+	a, err := agent.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+	quit := func() {
+		log.Print("quitting")
+		a.Shutdown()
+		time.Sleep(300 * time.Millisecond)
+		os.Exit(0)
+	}
+	ws := &web.Server{Agent: a, Token: info.Token, Logs: ring, Quit: quit}
+	go func() {
+		srv := &http.Server{Handler: ws.Handler(strconv.Itoa(uiPort)), ReadHeaderTimeout: 5 * time.Second}
+		log.Fatal(srv.Serve(ln))
+	}()
+
+	url := pageURL(info)
+	log.Printf("control page: http://127.0.0.1:%d/", uiPort)
+	if !*noBrowser {
+		openBrowser(url)
+	}
+	log.Fatal(a.Run())
+}
+
+// The token travels in the URL fragment, which browsers never send to servers.
+func pageURL(i uiInfo) string {
+	return "http://127.0.0.1:" + strconv.Itoa(i.Port) + "/#token=" + i.Token
+}
+
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Printf("open the control page manually: %s (%v)", url, err)
 	}
 }

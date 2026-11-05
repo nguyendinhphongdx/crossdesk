@@ -18,3 +18,19 @@ func TestEveryMacKeyHasWindowsScancode(t *testing.T) {
 		}
 	}
 }
+
+func TestWindowsRoundTrip(t *testing.T) {
+	for hid, sc := range hidToWin {
+		back, ok := WinToHID(sc)
+		if !ok {
+			t.Fatalf("scancode 0x%04X has no HID", sc)
+		}
+		if back != hid && !(hid == 0x32 && back == 0x31) {
+			t.Errorf("hid 0x%02X -> sc 0x%04X -> hid 0x%02X", hid, sc, back)
+		}
+	}
+	// NumLock reported with the extended flag by low-level hooks.
+	if h, _ := WinToHID(0xE045); h != 0x53 {
+		t.Errorf("extended NumLock fallback: got 0x%02X", h)
+	}
+}

@@ -1,10 +1,11 @@
-// Package client connects to a server and replays the received input locally.
+// Package client connects to the host and replays the received input locally.
 package client
 
 import (
 	"errors"
 	"log"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"sharedevice/internal/inject"
@@ -13,52 +14,108 @@ import (
 )
 
 type Config struct {
-	Server      string
+	Server      string // host:port
 	Password    string
+	ID          string
 	Name        string
 	SwapCmdCtrl bool
 	Verbose     bool
 }
 
-// Run connects and reconnects forever.
-func Run(cfg Config, inj inject.Injector) error {
+// Client keeps a connection to one host until stopped.
+type Client struct {
+	cfg       Config
+	inj       inject.Injector
+	stop      chan struct{}
+	done      chan struct{}
+	connected atomic.Bool
+	lastErr   atomic.Value // string
+}
+
+// Start connects in the background, reconnecting until Stop is called.
+func Start(cfg Config, inj inject.Injector) *Client {
+	c := &Client{cfg: cfg, inj: inj, stop: make(chan struct{}), done: make(chan struct{})}
+	go c.loop()
+	return c
+}
+
+func (c *Client) Connected() bool { return c.connected.Load() }
+
+func (c *Client) LastError() string {
+	s, _ := c.lastErr.Load().(string)
+	return s
+}
+
+// Stop disconnects and waits for the connection to wind down.
+func (c *Client) Stop() {
+	select {
+	case <-c.stop:
+	default:
+		close(c.stop)
+	}
+	<-c.done
+}
+
+func (c *Client) loop() {
+	defer close(c.done)
 	for {
-		err := runOnce(cfg, inj)
-		if errors.Is(err, proto.ErrAuth) {
-			return errors.New("wrong password")
+		err := c.runOnce()
+		c.connected.Store(false)
+		select {
+		case <-c.stop:
+			return
+		default:
 		}
-		log.Printf("disconnected: %v; retrying in 2s", err)
-		time.Sleep(2 * time.Second)
+		if err != nil {
+			c.lastErr.Store(err.Error())
+			log.Printf("client: %v; retrying", err)
+		}
+		select {
+		case <-c.stop:
+			return
+		case <-time.After(2 * time.Second):
+		}
 	}
 }
 
 type session struct {
 	cfg     Config
 	inj     inject.Injector
-	scr     inject.Screen
 	keys    map[uint16]bool
 	buttons map[int]bool
 }
 
-func runOnce(cfg Config, inj inject.Injector) error {
-	c, err := net.DialTimeout("tcp", cfg.Server, 5*time.Second)
+func (c *Client) runOnce() error {
+	nc, err := net.DialTimeout("tcp", c.cfg.Server, 5*time.Second)
 	if err != nil {
 		return err
 	}
-	if tc, ok := c.(*net.TCPConn); ok {
+	if tc, ok := nc.(*net.TCPConn); ok {
 		tc.SetNoDelay(true)
 	}
-	conn, err := proto.ClientHandshake(c, cfg.Password)
+	// Closing the socket is how Stop interrupts a blocking Recv.
+	stopped := make(chan struct{})
+	defer close(stopped)
+	go func() {
+		select {
+		case <-c.stop:
+			nc.Close()
+		case <-stopped:
+		}
+	}()
+
+	conn, err := proto.ClientHandshake(nc, c.cfg.Password)
 	if err != nil {
-		c.Close()
+		nc.Close()
 		return err
 	}
 	defer conn.Close()
 
-	s := &session{cfg: cfg, inj: inj, scr: inj.Screen(), keys: map[uint16]bool{}, buttons: map[int]bool{}}
+	scr := c.inj.Screen()
+	s := &session{cfg: c.cfg, inj: c.inj, keys: map[uint16]bool{}, buttons: map[int]bool{}}
 	defer s.releaseAll()
 
-	if err := conn.Send(proto.Msg{Type: proto.Hello, X: s.scr.X, Y: s.scr.Y, W: s.scr.W, H: s.scr.H, Name: cfg.Name}); err != nil {
+	if err := conn.Send(proto.Msg{Type: proto.Hello, X: scr.X, Y: scr.Y, W: scr.W, H: scr.H, Name: c.cfg.ID + "\n" + c.cfg.Name}); err != nil {
 		return err
 	}
 	ack, err := conn.Recv(10 * time.Second)
@@ -66,22 +123,21 @@ func runOnce(cfg Config, inj inject.Injector) error {
 		if errors.Is(err, proto.ErrAuth) {
 			return err
 		}
-		// The server drops us silently on a bad password.
-		return errors.New("server closed the connection (wrong password?): " + err.Error())
+		return errors.New("host closed the connection (wrong password or not hosting)")
 	}
 	if ack.Type != proto.Hello {
 		return errors.New("unexpected handshake reply")
 	}
-	log.Printf("connected to %s (screen %dx%d)", cfg.Server, s.scr.W, s.scr.H)
+	c.connected.Store(true)
+	c.lastErr.Store("")
+	log.Printf("connected to host %s (screen %dx%d)", c.cfg.Server, scr.W, scr.H)
 
-	stop := make(chan struct{})
-	defer close(stop)
 	go func() {
 		t := time.NewTicker(2 * time.Second)
 		defer t.Stop()
 		for {
 			select {
-			case <-stop:
+			case <-stopped:
 				return
 			case <-t.C:
 				if conn.Send(proto.Msg{Type: proto.Ping}) != nil {
@@ -104,11 +160,9 @@ func runOnce(cfg Config, inj inject.Injector) error {
 func (s *session) apply(m proto.Msg) {
 	switch m.Type {
 	case proto.Enter:
-		s.scr = s.inj.Screen() // resolution may have changed
-		log.Printf("cursor entered")
+		s.inj.Screen() // refresh in case the resolution changed
 		s.inj.MoveTo(m.X, m.Y)
 	case proto.Leave:
-		log.Printf("cursor left")
 		s.releaseAll()
 	case proto.MouseMove:
 		s.inj.MoveTo(m.X, m.Y)
@@ -134,8 +188,8 @@ func (s *session) apply(m proto.Msg) {
 	}
 }
 
-// releaseAll lifts every key/button still held, so nothing stays stuck when
-// the cursor leaves or the connection drops.
+// releaseAll lifts every key/button still held so nothing sticks when the
+// cursor leaves or the connection drops.
 func (s *session) releaseAll() {
 	for k := range s.keys {
 		s.inj.Key(k, false)

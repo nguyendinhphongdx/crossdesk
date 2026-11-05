@@ -30,27 +30,28 @@ func (r *recorder) snapshot() []string {
 	return append([]string(nil), r.log...)
 }
 
-func TestEndToEnd(t *testing.T) {
+func startHost(t *testing.T, pw string) (*server.Server, string) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Skip("cannot listen:", err)
 	}
-	addr := ln.Addr().String()
-	ln.Close()
-
-	srv, err := server.New(server.Config{Listen: addr, Password: "pw", Side: "right", Speed: 1}, server.Platform{
+	t.Cleanup(func() { ln.Close() })
+	srv := server.New(server.Config{SelfID: "host", Password: pw, Speed: 1}, server.Platform{
 		Freeze: func(bool) {}, Warp: func(float64, float64) {},
 		Bounds: func() capture.Bounds { return capture.Bounds{MaxX: 1440, MaxY: 900} },
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	go srv.Serve()
+	srv.SetLayout(map[string]server.Cell{"host": {X: 0, Y: 0}, "pc": {X: 1, Y: 0}})
+	srv.SetActive(true)
+	go srv.Serve(ln)
+	return srv, ln.Addr().String()
+}
 
+func TestEndToEnd(t *testing.T) {
+	srv, addr := startHost(t, "pw")
 	rec := &recorder{}
-	go Run(Config{Server: addr, Password: "pw", Name: "test", SwapCmdCtrl: true}, rec)
+	c := Start(Config{Server: addr, Password: "pw", ID: "pc", Name: "test", SwapCmdCtrl: true}, rec)
+	defer c.Stop()
 
-	// Wait until the client is connected: an edge move only switches with a client.
 	deadline := time.Now().Add(5 * time.Second)
 	for !srv.Handle(capture.Event{Kind: capture.Move, X: 1439.5, Y: 450, DX: 2}) {
 		if time.Now().After(deadline) {
@@ -58,55 +59,57 @@ func TestEndToEnd(t *testing.T) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
+	if !c.Connected() {
+		t.Fatal("client should report connected")
+	}
 	srv.Handle(capture.Event{Kind: capture.Move, DX: 10, DY: 5})
-	srv.Handle(capture.Event{Kind: capture.Key, Key: keymap.HIDLeftGUI, Down: true}) // Cmd
-	srv.Handle(capture.Event{Kind: capture.Key, Key: 0x06, Down: true})              // C
+	srv.Handle(capture.Event{Kind: capture.Key, Key: keymap.HIDLeftGUI, Down: true})
+	srv.Handle(capture.Event{Kind: capture.Key, Key: 0x06, Down: true})
 	srv.Handle(capture.Event{Kind: capture.Key, Key: 0x06, Down: false})
 	srv.Handle(capture.Event{Kind: capture.Button, Button: 0, Down: true})
 	srv.Handle(capture.Event{Kind: capture.Button, Button: 0, Down: false})
 	srv.Handle(capture.Event{Kind: capture.Scroll, ScrollY: -120})
-	srv.Handle(capture.Event{Kind: capture.Move, DX: -50}) // back across the edge -> Leave
+	srv.Handle(capture.Event{Kind: capture.Move, DX: -50})
 
 	want := []string{
 		"move 0,539", "move 0,539", "move 10,544",
-		"key E0 true", // Cmd swapped to Ctrl
-		"key 06 true", "key 06 false",
+		"key E0 true", "key 06 true", "key 06 false",
 		"button 0 true", "button 0 false",
 		"wheel 0,-120",
-		"key E0 false", // released on Leave because Cmd was still held
+		"key E0 false",
 	}
 	deadline = time.Now().Add(3 * time.Second)
-	for {
-		got := rec.snapshot()
-		if fmt.Sprint(got) == fmt.Sprint(want) {
-			return
-		}
+	for fmt.Sprint(rec.snapshot()) != fmt.Sprint(want) {
 		if time.Now().After(deadline) {
-			t.Fatalf("\n got  %v\n want %v", got, want)
+			t.Fatalf("\n got  %v\n want %v", rec.snapshot(), want)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	// Host steps down: client must notice and disconnect.
+	srv.SetActive(false)
+	deadline = time.Now().Add(3 * time.Second)
+	for c.Connected() {
+		if time.Now().After(deadline) {
+			t.Fatal("client still connected after host stepped down")
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
 }
 
-func TestWrongPasswordStops(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Skip("cannot listen:", err)
-	}
-	addr := ln.Addr().String()
-	ln.Close()
-	srv, _ := server.New(server.Config{Listen: addr, Password: "right", Side: "right"}, server.Platform{})
-	go srv.Serve()
-	time.Sleep(100 * time.Millisecond)
-	done := make(chan error)
-	go func() { done <- runOnce(Config{Server: addr, Password: "wrong"}, &recorder{}) }()
-	select {
-	case err := <-done:
-		if err == nil {
-			t.Fatal("expected an error")
+func TestWrongPassword(t *testing.T) {
+	_, addr := startHost(t, "right")
+	c := Start(Config{Server: addr, Password: "wrong", ID: "pc"}, &recorder{})
+	defer c.Stop()
+	deadline := time.Now().Add(5 * time.Second)
+	for c.LastError() == "" {
+		if time.Now().After(deadline) {
+			t.Fatal("no error reported")
 		}
-		t.Log("client error:", err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("client hung with wrong password")
+		time.Sleep(20 * time.Millisecond)
 	}
+	if c.Connected() {
+		t.Fatal("must not connect")
+	}
+	t.Log("error:", c.LastError())
 }
