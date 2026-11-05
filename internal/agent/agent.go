@@ -27,12 +27,13 @@ const (
 )
 
 type Agent struct {
-	mu    sync.Mutex
-	cfg   *Config
-	key   []byte
-	peers map[string]*peer
-	inj   inject.Injector
-	srv   *server.Server
+	version string
+	mu      sync.Mutex
+	cfg     *Config
+	key     []byte
+	peers   map[string]*peer
+	inj     inject.Injector
+	srv     *server.Server
 
 	captureRunning bool
 	captureErr     string
@@ -44,7 +45,7 @@ type Agent struct {
 	changed chan struct{}
 }
 
-func New() (*Agent, error) {
+func New(version string) (*Agent, error) {
 	cfg := loadConfig()
 	if err := cfg.save(); err != nil {
 		log.Printf("cannot save config: %v", err)
@@ -53,7 +54,7 @@ func New() (*Agent, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &Agent{cfg: cfg, key: groupKey(cfg.Password), peers: map[string]*peer{}, inj: inj, changed: make(chan struct{}, 1)}
+	a := &Agent{version: version, cfg: cfg, key: groupKey(cfg.Password), peers: map[string]*peer{}, inj: inj, changed: make(chan struct{}, 1)}
 	a.srv = server.New(server.Config{SelfID: cfg.ID, Password: cfg.Password, Speed: cfg.Speed},
 		server.Platform{Freeze: capture.Freeze, Warp: capture.Warp, Bounds: capture.ScreenBounds})
 	a.srv.SetLayout(cfg.Shared.Layout)
@@ -307,6 +308,8 @@ type Status struct {
 	Host          string       `json:"host"`
 	Devices       []DeviceInfo `json:"devices"`
 	CaptureError  string       `json:"captureError,omitempty"`
+	PermissionOK  bool         `json:"permissionOK"`
+	Version       string       `json:"version"`
 	ClientError   string       `json:"clientError,omitempty"`
 	SwapCmdCtrl   bool         `json:"swapCmdCtrl"`
 	Speed         float64      `json:"speed"`
@@ -330,7 +333,8 @@ func (a *Agent) Status() Status {
 		self.Connected = a.cli.Connected()
 	}
 	st := Status{Self: self, HasPassword: a.cfg.Password != "", Host: sh.Host, CaptureError: a.captureErr,
-		SwapCmdCtrl: a.cfg.SwapCmdCtrl, Speed: a.cfg.Speed, ConnectedToMe: a.srv.Connected()}
+		SwapCmdCtrl: a.cfg.SwapCmdCtrl, Speed: a.cfg.Speed, ConnectedToMe: a.srv.Connected(),
+		PermissionOK: capture.Trusted(false), Version: a.version}
 	if a.cli != nil {
 		st.ClientError = a.cli.LastError()
 	}

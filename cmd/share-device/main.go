@@ -25,6 +25,9 @@ import (
 
 const uiPort = 24801
 
+// version is set at build time: -ldflags "-X main.version=v1.2.3".
+var version = "dev"
+
 type uiInfo struct {
 	Port  int    `json:"port"`
 	Token string `json:"token"`
@@ -68,7 +71,8 @@ func main() {
 		os.WriteFile(uiInfoPath(), b, 0o600)
 	}
 
-	a, err := agent.New()
+	log.Printf("Share Device %s (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
+	a, err := agent.New(version)
 	if err != nil {
 		log.Fatal(err)
 	}

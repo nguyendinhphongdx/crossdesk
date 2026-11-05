@@ -88,6 +88,7 @@ label.opt { display: flex; gap: 8px; align-items: center; }
     <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="9" height="7" rx="1.5"/><rect x="13" y="13" width="9" height="7" rx="1.5"/><path d="M11 7.5h4a2 2 0 0 1 2 2V13"/><path d="m15 11 2 2 2-2"/></svg>
     <h1>Share Device</h1>
     <span id="selfRole" class="badge"></span>
+    <span id="version" class="muted" style="font-size:12px"></span>
     <span class="spacer"></span>
     <button id="quitBtn" class="danger" title="Tắt ứng dụng trên máy này">Thoát</button>
   </header>
@@ -185,8 +186,9 @@ function roleBadges(d) {
 function renderNotices() {
   const n = [];
   if (!st.hasPassword) n.push('<div class="notice warn">Bước 1: đặt <b>mật khẩu nhóm</b> giống nhau trên tất cả các máy (Mac và Windows) để chúng nhận ra nhau.</div>');
-  if (st.captureError === 'missing-permission') n.push('<div class="notice warn">macOS chưa cấp quyền <b>Trợ năng (Accessibility)</b> cho Share Device, nên máy này chưa làm máy chủ được. <button id="permBtn">Mở yêu cầu cấp quyền</button><br><span style="font-size:12px">Vào System Settings → Privacy &amp; Security → Accessibility, bật Share Device. Có thể phải bật cả Input Monitoring.</span></div>');
-  else if (st.captureError) n.push('<div class="notice bad">Không bắt được chuột/bàn phím: ' + esc(st.captureError) + '</div>');
+  if (!st.permissionOK && st.self.os === 'darwin') n.push('<div class="notice warn">macOS chưa cấp quyền <b>Trợ năng (Accessibility)</b> cho Share Device, nên máy này chưa điều khiển hay được điều khiển. <button id="permBtn">Mở yêu cầu cấp quyền</button><br><span style="font-size:12px">Vào System Settings → Privacy &amp; Security → Accessibility, bật Share Device. Có thể phải bật cả Input Monitoring. Sau đó thoát và mở lại ứng dụng.</span></div>');
+  else if (!st.permissionOK && st.self.os === 'linux') n.push('<div class="notice warn">Linux: Share Device chưa có quyền truy cập <code>/dev/uinput</code> và <code>/dev/input</code>. Chạy một lần rồi đăng xuất, đăng nhập lại:<br><code style="font-size:12px">sudo share-device-setup</code> &nbsp;(hoặc chạy <code>install.sh</code> trong gói tải về)</div>');
+  else if (st.captureError && st.captureError !== 'missing-permission') n.push('<div class="notice bad">Không bắt được chuột/bàn phím: ' + esc(st.captureError) + '</div>');
   if (st.self.role === 'client' && !st.self.connected) {
     const host = st.devices.find((d) => d.id === st.host);
     const why = !host ? 'chưa thấy máy chủ trong mạng' : !host.online ? 'máy chủ đang ngoại tuyến' : (st.clientError || 'đang kết nối');
@@ -304,6 +306,7 @@ function render() {
   const r = st.self.role;
   $('selfRole').className = 'badge ' + (r === 'host' ? 'host' : r === 'client' && st.self.connected ? 'ok' : '');
   $('selfRole').textContent = r === 'host' ? 'Máy chủ' : r === 'client' ? (st.self.connected ? 'Máy khách · đã kết nối' : 'Máy khách') : 'Chưa chia sẻ';
+  $('version').textContent = st.version;
   if (document.activeElement !== $('nameInput')) $('nameInput').value = st.self.name;
   $('pwBtn').textContent = st.hasPassword ? 'Đổi mật khẩu' : 'Đặt mật khẩu';
   $('pwBtn').classList.toggle('primary', !st.hasPassword);

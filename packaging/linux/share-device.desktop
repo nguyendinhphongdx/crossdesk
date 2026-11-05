@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Share Device
+Comment=Share one keyboard and mouse between computers
+Exec=share-device
+Icon=input-mouse
+Terminal=false
+Categories=Utility;

@@ -1,79 +1,89 @@
-# share-device
+# Share Device
 
-Dùng **một bàn phím + trackpad/chuột của MacBook** để điều khiển máy **Windows** trong cùng mạng LAN.
-Đẩy con trỏ ra mép màn hình Mac → con trỏ "nhảy" sang Windows; kéo ngược lại → quay về Mac.
+Dùng **một bàn phím và một con chuột/trackpad** cho nhiều máy tính trong cùng mạng LAN — **macOS, Windows, Linux**.
+Đẩy con trỏ qua mép màn hình là sang máy bên cạnh. Hai chiều: máy nào làm máy chủ cũng được.
+
+- Tự tìm các máy trong mạng (cùng mật khẩu nhóm = cùng nhóm)
+- Chọn máy chủ và **kéo thả sắp xếp vị trí** màn hình trong bảng điều khiển
+- Tự đổi Cmd ⇄ Ctrl giữa Mac và Windows/Linux
+- Mã hoá toàn bộ (PBKDF2 + AES-256-GCM), gói quảng bá ký HMAC
+
+## Cài đặt
+
+Tải ở trang web của dự án (tự nhận diện hệ điều hành) hoặc mục **Releases** trên GitHub.
+
+| Hệ điều hành | File | Ghi chú |
+|---|---|---|
+| macOS 11+ (Apple Silicon & Intel) | `ShareDevice-macOS-universal.zip` | Kéo vào Applications. Lần đầu: chuột phải → Open. Cấp quyền **Accessibility** (+ Input Monitoring). |
+| Windows 10/11 x64 / ARM64 | `ShareDevice-Windows-x64.exe` / `-arm64.exe` | Chạy trực tiếp. Cho phép qua Firewall (mạng Private). |
+| Linux x64 / ARM64 (X11 & Wayland) | `ShareDevice-Linux-x64.tar.gz` / `-arm64` | `sudo ./install.sh`, rồi đăng xuất/đăng nhập lại (cấp quyền `/dev/uinput` + nhóm `input`). |
+
+## Sử dụng
+
+1. Mở Share Device trên mọi máy — bảng điều khiển tự mở trong trình duyệt (`http://127.0.0.1:24801`).
+2. Đặt **cùng một mật khẩu nhóm** trên các máy.
+3. Bấm **Làm máy chủ** ở máy có bàn phím/chuột bạn muốn dùng. Các máy khác tự thành máy khách.
+4. Kéo thả các màn hình trong lưới cho giống vị trí thật. Đẩy chuột qua mép để chuyển máy.
+
+Cổng mạng: TCP **24800** (input, mã hoá), UDP **24802** (tìm máy), `127.0.0.1:24801` (bảng điều khiển, chỉ máy cục bộ).
+
+## Kiến trúc
 
 ```
-┌──────────── MacBook (server) ────────────┐        TCP 24800, mã hoá AES-GCM        ┌──── Windows (client) ────┐
-│ CGEventTap bắt chuột/phím                 │ ─────────────────────────────────────► │ SendInput giả lập        │
-│ chạm mép phải → chặn input local, gửi đi  │                                         │ chuột + phím             │
-└───────────────────────────────────────────┘                                         └──────────────────────────┘
+                ┌─────────────── mỗi máy chạy cùng một ứng dụng ───────────────┐
+ trình duyệt ◄──┤ web UI (127.0.0.1, token)                                    │
+                │ agent: tìm máy (UDP, HMAC) · cấu hình nhóm (đồng bộ LWW)      │
+                │   ├─ máy chủ: capture → server (lưới màn hình) ──TCP AES-GCM──┼──► máy khách: client → inject
+                │   └─ máy khách: client → inject                                │
+                └──────────────────────────────────────────────────────────────┘
 ```
-
-## Build
-
-Cần Go ≥ 1.24. Build trên Mac ra luôn cả file `.exe` cho Windows:
-
-```bash
-make            # hoặc chạy tay:
-go build -o dist/share-device ./cmd/share-device
-GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o dist/share-device.exe ./cmd/share-device
-```
-
-## Chạy
-
-**1. Trên Mac** (máy có bàn phím/trackpad):
-
-```bash
-./dist/share-device server -password "mat-khau-bi-mat" -side right
-```
-
-- `-side`: Windows nằm ở phía nào của màn hình Mac: `left`, `right`, `top`, `bottom`.
-- `-speed`: tốc độ con trỏ bên Windows (mặc định 1.5).
-- Lần đầu macOS sẽ hỏi quyền: vào **System Settings → Privacy & Security → Accessibility**
-  (và **Input Monitoring**) bật cho Terminal/iTerm (app đang chạy lệnh), rồi chạy lại.
-- Server in ra IP của Mac để bạn dùng ở bước 2.
-
-**2. Trên Windows**: copy `dist/share-device.exe` sang và chạy:
-
-```powershell
-.\share-device.exe client -server 192.168.1.10 -password "mat-khau-bi-mat"
-```
-
-- Lần đầu Windows Firewall có thể hỏi — cho phép (client chỉ kết nối ra, nhưng bên Mac cần cho phép kết nối vào cổng 24800).
-- `-swap-cmd-ctrl` (mặc định bật trên Windows): **Cmd → Ctrl** để Cmd+C/Cmd+V copy/paste như trên Mac; Ctrl → phím Windows.
-  Tắt bằng `-swap-cmd-ctrl=false`.
-
-Có thể dùng biến môi trường `SHARE_DEVICE_PASSWORD` thay cho `-password`.
-
-## Tính năng
-
-- Chuyển máy bằng cách đẩy con trỏ qua mép màn hình (không chuyển khi đang giữ chuột/kéo thả).
-- Chuột: di chuyển, click trái/phải/giữa, nút back/forward, cuộn dọc + ngang (trackpad cuộn mượt).
-- Bàn phím: map theo vị trí phím (USB HID), nên layout bàn phím bên Windows quyết định ký tự.
-- Phím đang giữ được tự nhả khi chuyển máy hoặc mất kết nối → không bị kẹt phím.
-- Mã hoá toàn bộ (PBKDF2 + AES-256-GCM, salt mới mỗi phiên): mật khẩu bạn gõ sang Windows không đi dạng plaintext trong LAN.
-- Client tự kết nối lại khi mất mạng; mất kết nối thì Mac lập tức lấy lại quyền điều khiển.
-
-## Giới hạn hiện tại
-
-- Chỉ Mac làm server (bắt input), Windows/Mac làm client. Chưa hỗ trợ dùng bàn phím Windows điều khiển Mac.
-- Chưa chia sẻ clipboard, chưa kéo-thả file.
-- Một client tại một thời điểm.
-- Màn hình khoá / UAC (secure desktop) của Windows không nhận input giả lập — giới hạn của Windows.
-- Phím media trên hàng F của Mac (độ sáng, play/pause) chưa được chuyển.
-- Khi đang điều khiển Windows, con trỏ Mac vẫn hiện (đứng yên) ở mép màn hình.
-
-## Cấu trúc
 
 | Thư mục | Vai trò |
 |---|---|
-| `cmd/share-device` | CLI `server` / `client` |
-| `internal/capture` | Bắt input toàn cục trên macOS (CGEventTap, cgo) |
-| `internal/server` | Logic chuyển máy theo mép màn hình, theo dõi toạ độ ảo |
-| `internal/client` | Nhận message, giả lập input, tự kết nối lại |
-| `internal/inject` | Giả lập input: Windows (`SendInput`, không cần cgo), macOS (CGEvent) |
-| `internal/proto` | Message nhị phân + kênh mã hoá |
-| `internal/keymap` | Bảng mã phím macOS ↔ USB HID ↔ Windows scancode |
+| `cmd/share-device` | Ứng dụng: khởi động agent + web UI, mở trình duyệt, một phiên bản duy nhất |
+| `internal/agent` | Tìm máy, đồng bộ cấu hình nhóm (máy chủ, sơ đồ), tự chuyển vai trò |
+| `internal/server` | Định tuyến con trỏ qua lưới màn hình, nhiều máy khách |
+| `internal/client` | Nhận input, giả lập, tự kết nối lại |
+| `internal/capture` | Bắt input: macOS (CGEventTap), Windows (low-level hooks), Linux (evdev + EVIOCGRAB) |
+| `internal/inject` | Giả lập input: macOS (CGEvent), Windows (SendInput), Linux (uinput) |
+| `internal/linuxinput` | uinput/evdev thuần Go, không cgo |
+| `internal/proto` | Giao thức nhị phân + kênh mã hoá |
+| `internal/keymap` | Bảng mã phím macOS ↔ USB HID ↔ Windows scancode ↔ Linux evdev |
+| `internal/web` | Bảng điều khiển (HTML nhúng) |
+| `site/` | Trang giới thiệu + trang tải về (Vite, React, Tailwind, shadcn/ui) |
+| `packaging/` | Info.plist macOS, script cài đặt Linux, udev rule |
 
-Chạy test: `go test ./...`
+## Build
+
+```bash
+make mac                   # dist/ShareDevice-macOS-universal.zip (cần macOS)
+make windows-linux         # dist/ShareDevice-Windows-*.exe, dist/ShareDevice-Linux-*.tar.gz
+make test
+make site                  # site/dist
+```
+
+## Phát hành (CI/CD)
+
+| Workflow | Khi nào | Làm gì |
+|---|---|---|
+| `ci.yml` | push / PR | Test Go trên Linux, macOS, Windows · test uinput thật · cross-compile · build web |
+| `release.yml` | push tag `v*` | Test → build macOS (universal, ký ad-hoc), Windows, Linux → `SHA256SUMS.txt` → tạo GitHub Release |
+| `pages.yml` | push `site/**` lên main | Build web với đúng base path + tên repo → deploy GitHub Pages |
+
+Phát hành bản mới:
+
+```bash
+git tag v0.3.0
+git push origin v0.3.0
+```
+
+Thiết lập một lần trên GitHub: **Settings → Pages → Source: GitHub Actions**.
+Trang tải về luôn trỏ tới `releases/latest/download/<file>`, nên không cần build lại web sau mỗi lần phát hành.
+
+## Giới hạn hiện tại
+
+- Chưa chia sẻ clipboard / kéo thả file.
+- App macOS chỉ ký ad-hoc (chưa notarize) → Gatekeeper cảnh báo lần đầu. Mỗi bản build mới có thể phải cấp lại quyền Accessibility.
+- Windows: không điều khiển được màn hình khoá/UAC; muốn điều khiển app chạy quyền Admin thì chạy Share Device bằng quyền Admin.
+- Linux máy chủ: vị trí con trỏ được ước lượng từ chuyển động (Wayland không cho đọc vị trí thật) — phải "đẩy" qua mép một chút mới chuyển máy. Touchpad: một ngón di chuyển, hai ngón cuộn; chạm-để-click chưa hỗ trợ khi đang điều khiển máy khác.
+- Linux máy khách: kích thước màn hình lấy từ `xrandr` hoặc DRM; có thể ép bằng `SHARE_DEVICE_SCREEN=2560x1440`.

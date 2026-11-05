@@ -34,3 +34,22 @@ func TestWindowsRoundTrip(t *testing.T) {
 		t.Errorf("extended NumLock fallback: got 0x%02X", h)
 	}
 }
+
+func TestLinuxMapping(t *testing.T) {
+	cases := map[uint16]uint16{0x04: 30, 0x28: 28, 0xE0: 29, 0xE3: 125, 0x4F: 106, 0x3A: 59, 0x45: 88}
+	for hid, want := range cases {
+		if got, _ := HIDToLinux(hid); got != want {
+			t.Errorf("hid 0x%02X -> %d, want %d", hid, got, want)
+		}
+	}
+	for _, hid := range macToHID {
+		k, ok := HIDToLinux(hid)
+		if !ok {
+			t.Errorf("hid 0x%02X has no Linux code", hid)
+			continue
+		}
+		if back, _ := LinuxToHID(k); back != hid {
+			t.Errorf("hid 0x%02X -> %d -> 0x%02X", hid, k, back)
+		}
+	}
+}

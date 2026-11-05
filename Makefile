@@ -1,25 +1,22 @@
-.PHONY: all mac-app windows test clean
+.PHONY: all mac windows-linux test site clean
 
-APP := dist/Share Device.app
+VERSION ?= dev
 
-all: mac-app windows
+all: mac windows-linux
 
-# macOS app bundle (double-click to start; opens the control page in the browser).
-mac-app:
-	go build -o dist/share-device ./cmd/share-device
-	rm -rf "$(APP)"
-	mkdir -p "$(APP)/Contents/MacOS"
-	cp packaging/macos/Info.plist "$(APP)/Contents/Info.plist"
-	cp dist/share-device "$(APP)/Contents/MacOS/share-device"
-	codesign --force --sign - "$(APP)"
+# macOS universal app bundle -> dist/ShareDevice-macOS-universal.zip
+mac:
+	VERSION=$(VERSION) scripts/build-macos.sh
 
-# Windows GUI executables (no console window), cross-compiled without cgo.
-windows:
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags "-H windowsgui" -o dist/ShareDevice.exe ./cmd/share-device
-	GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -ldflags "-H windowsgui" -o dist/ShareDevice-arm64.exe ./cmd/share-device
+# Windows .exe + Linux tarballs (cross-compiled, no cgo)
+windows-linux:
+	VERSION=$(VERSION) scripts/build-cross.sh
 
 test:
 	go test ./...
 
+site:
+	cd site && npm ci && npm run build
+
 clean:
-	rm -rf dist
+	rm -rf dist site/dist

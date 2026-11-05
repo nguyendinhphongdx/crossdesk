@@ -1,0 +1,18 @@
+#!/bin/sh
+# Grants the current user access to /dev/uinput and /dev/input/event*.
+# Run once with sudo, then log out and back in.
+set -e
+if [ "$(id -u)" -ne 0 ]; then
+  exec sudo "$0" "$@"
+fi
+USER_NAME="${SUDO_USER:-$USER}"
+install -m 0644 "$(dirname "$0")/../share/share-device/70-share-device.rules" /etc/udev/rules.d/70-share-device.rules 2>/dev/null \
+  || install -m 0644 "$(dirname "$0")/70-share-device.rules" /etc/udev/rules.d/70-share-device.rules
+echo uinput > /etc/modules-load.d/share-device.conf
+modprobe uinput || true
+udevadm control --reload-rules
+udevadm trigger --subsystem-match=misc --sysname-match=uinput || true
+udevadm trigger --subsystem-match=input || true
+if ! getent group input >/dev/null; then groupadd input; fi
+usermod -aG input "$USER_NAME"
+echo "Done. $USER_NAME is now in the 'input' group — log out and log back in, then start Share Device."
