@@ -27,9 +27,11 @@ func findDevice(t *testing.T, name string) *Physical {
 }
 
 func TestUinputRoundTrip(t *testing.T) {
-	if _, err := os.Stat("/dev/uinput"); err != nil {
-		t.Skip("no /dev/uinput")
+	f, err := os.OpenFile("/dev/uinput", os.O_WRONLY, 0)
+	if err != nil {
+		t.Skip("cannot open /dev/uinput (needs root or the input group):", err)
 	}
+	f.Close()
 	kbd, err := NewKeyboard([]uint16{KeyA, 29})
 	if err != nil {
 		t.Fatal(err)
