@@ -64,6 +64,14 @@ make test
 make site                  # site/dist
 ```
 
+Icon và manifest của file `.exe` Windows nằm trong `cmd/crossdesk/rsrc_windows_*.syso`. Tạo lại khi đổi logo:
+
+```bash
+go run github.com/tc-hib/go-winres@v0.3.3 simply --icon packaging/windows/crossdesk-256.png --manifest gui \
+  --product-name Crossdesk --file-description Crossdesk --original-filename Crossdesk.exe \
+  --arch amd64,arm64 --out cmd/crossdesk/rsrc
+```
+
 ## Phát hành (CI/CD)
 
 | Workflow | Khi nào | Làm gì |
