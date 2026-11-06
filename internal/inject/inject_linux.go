@@ -3,8 +3,8 @@ package inject
 import (
 	"sync"
 
-	"sharedevice/internal/keymap"
-	li "sharedevice/internal/linuxinput"
+	"crossdesk/internal/keymap"
+	li "crossdesk/internal/linuxinput"
 )
 
 // linux injects through two uinput devices: a keyboard and an absolute

@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Share Device</title>
+<title>Crossdesk</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E %3Cdefs%3E %3ClinearGradient id=%22crossdesk-bg%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E %3Cstop offset=%220%22 stop-color=%22%236366F1%22/%3E %3Cstop offset=%221%22 stop-color=%22%23A855F7%22/%3E %3C/linearGradient%3E %3C/defs%3E %3Crect width=%2264%22 height=%2264%22 rx=%2216%22 fill=%22url(%23crossdesk-bg)%22/%3E %3Crect x=%2210%22 y=%2215%22 width=%2218%22 height=%2214%22 rx=%224.5%22 fill=%22%23fff%22/%3E %3Crect x=%2236%22 y=%2215%22 width=%2218%22 height=%2214%22 rx=%224.5%22 fill=%22%23fff%22/%3E %3Cpath d=%22M16 38 Q28 50 39 44%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%224.5%22 stroke-linecap=%22round%22/%3E %3Cpath d=%22M42 35.5 L42.6 51 L46.4 47.4 L49.4 53.2 L52.2 51.8 L49.3 46.2 L54.6 45.6 Z%22 fill=%22%23fff%22 stroke=%22%23fff%22 stroke-width=%222.2%22 stroke-linejoin=%22round%22/%3E %3C/svg%3E">
 <style>
 :root {
   --bg: #f4f5f7; --panel: #ffffff; --text: #1b1d22; --muted: #6b7280; --line: #e3e5ea;
@@ -85,8 +86,8 @@ label.opt { display: flex; gap: 8px; align-items: center; }
 <body>
 <main>
   <header>
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="9" height="7" rx="1.5"/><rect x="13" y="13" width="9" height="7" rx="1.5"/><path d="M11 7.5h4a2 2 0 0 1 2 2V13"/><path d="m15 11 2 2 2-2"/></svg>
-    <h1>Share Device</h1>
+    <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"> <defs> <linearGradient id="crossdesk-bg" x1="0" y1="0" x2="1" y2="1"> <stop offset="0" stop-color="#6366F1"/> <stop offset="1" stop-color="#A855F7"/> </linearGradient> </defs> <rect width="64" height="64" rx="16" fill="url(#crossdesk-bg)"/> <rect x="10" y="15" width="18" height="14" rx="4.5" fill="#fff"/> <rect x="36" y="15" width="18" height="14" rx="4.5" fill="#fff"/> <path d="M16 38 Q28 50 39 44" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/> <path d="M42 35.5 L42.6 51 L46.4 47.4 L49.4 53.2 L52.2 51.8 L49.3 46.2 L54.6 45.6 Z" fill="#fff" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/> </svg>
+    <h1>Crossdesk</h1>
     <span id="selfRole" class="badge"></span>
     <span id="version" class="muted" style="font-size:12px"></span>
     <span class="spacer"></span>
@@ -186,8 +187,8 @@ function roleBadges(d) {
 function renderNotices() {
   const n = [];
   if (!st.hasPassword) n.push('<div class="notice warn">Bước 1: đặt <b>mật khẩu nhóm</b> giống nhau trên tất cả các máy (Mac và Windows) để chúng nhận ra nhau.</div>');
-  if (!st.permissionOK && st.self.os === 'darwin') n.push('<div class="notice warn">macOS chưa cấp quyền <b>Trợ năng (Accessibility)</b> cho Share Device, nên máy này chưa điều khiển hay được điều khiển. <button id="permBtn">Mở yêu cầu cấp quyền</button><br><span style="font-size:12px">Vào System Settings → Privacy &amp; Security → Accessibility, bật Share Device. Có thể phải bật cả Input Monitoring. Sau đó thoát và mở lại ứng dụng.</span></div>');
-  else if (!st.permissionOK && st.self.os === 'linux') n.push('<div class="notice warn">Linux: Share Device chưa có quyền truy cập <code>/dev/uinput</code> và <code>/dev/input</code>. Chạy một lần rồi đăng xuất, đăng nhập lại:<br><code style="font-size:12px">sudo share-device-setup</code> &nbsp;(hoặc chạy <code>install.sh</code> trong gói tải về)</div>');
+  if (!st.permissionOK && st.self.os === 'darwin') n.push('<div class="notice warn">macOS chưa cấp quyền <b>Trợ năng (Accessibility)</b> cho Crossdesk, nên máy này chưa điều khiển hay được điều khiển. <button id="permBtn">Mở yêu cầu cấp quyền</button><br><span style="font-size:12px">Vào System Settings → Privacy &amp; Security → Accessibility, bật Crossdesk. Có thể phải bật cả Input Monitoring. Sau đó thoát và mở lại ứng dụng.</span></div>');
+  else if (!st.permissionOK && st.self.os === 'linux') n.push('<div class="notice warn">Linux: Crossdesk chưa có quyền truy cập <code>/dev/uinput</code> và <code>/dev/input</code>. Chạy một lần rồi đăng xuất, đăng nhập lại:<br><code style="font-size:12px">sudo crossdesk-setup</code> &nbsp;(hoặc chạy <code>install.sh</code> trong gói tải về)</div>');
   else if (st.captureError && st.captureError !== 'missing-permission') n.push('<div class="notice bad">Không bắt được chuột/bàn phím: ' + esc(st.captureError) + '</div>');
   if (st.self.role === 'client' && !st.self.connected) {
     const host = st.devices.find((d) => d.id === st.host);
@@ -212,7 +213,7 @@ function renderDevices() {
       </div></div>`;
   }).join('');
   if (st.devices.length === 1) $('devices').insertAdjacentHTML('beforeend',
-    '<div class="dev" style="border-style:dashed"><div class="info muted">Đang tìm máy khác… Hãy mở Share Device trên máy kia, đặt cùng mật khẩu và cho phép qua tường lửa (cổng UDP 24802, TCP 24800).</div></div>');
+    '<div class="dev" style="border-style:dashed"><div class="info muted">Đang tìm máy khác… Hãy mở Crossdesk trên máy kia, đặt cùng mật khẩu và cho phép qua tường lửa (cổng UDP 24802, TCP 24800).</div></div>');
   document.querySelectorAll('[data-host]').forEach((b) => b.onclick = () =>
     api('host', { ID: b.dataset.host }).then(() => { toast('Đã chọn máy chủ'); refresh(); }).catch((e) => toast(e.message)));
   $('stopBtn').disabled = !st.host;
@@ -329,7 +330,7 @@ $('pwInput').onkeydown = (e) => { if (e.key === 'Enter') $('pwBtn').click(); };
 $('nameBtn').onclick = () => api('name', { Name: $('nameInput').value }).then(() => { toast('Đã đổi tên'); refresh(); }).catch((e) => toast(e.message));
 $('nameInput').onkeydown = (e) => { if (e.key === 'Enter') $('nameBtn').click(); };
 $('stopBtn').onclick = () => api('host', { ID: '' }).then(() => { toast('Đã dừng chia sẻ'); refresh(); }).catch((e) => toast(e.message));
-$('quitBtn').onclick = () => { if (confirm('Tắt Share Device trên máy này?')) api('quit', {}).then(() => { document.body.innerHTML = '<main><p>Đã tắt Share Device. Có thể đóng tab này.</p></main>'; }).catch((e) => toast(e.message)); };
+$('quitBtn').onclick = () => { if (confirm('Tắt Crossdesk trên máy này?')) api('quit', {}).then(() => { document.body.innerHTML = '<main><p>Đã tắt Crossdesk. Có thể đóng tab này.</p></main>'; }).catch((e) => toast(e.message)); };
 const saveOptions = () => api('options', { SwapCmdCtrl: $('swapOpt').checked, Speed: +$('speedOpt').value }).then(refresh).catch((e) => toast(e.message));
 $('swapOpt').onchange = saveOptions;
 $('speedOpt').oninput = () => { editingOptions = true; $('speedVal').textContent = '×' + Number($('speedOpt').value).toFixed(1); };

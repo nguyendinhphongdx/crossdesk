@@ -89,7 +89,7 @@ import (
 	"errors"
 	"runtime"
 
-	"sharedevice/internal/keymap"
+	"crossdesk/internal/keymap"
 )
 
 var handler Handler

@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"sharedevice/internal/capture"
-	"sharedevice/internal/inject"
-	"sharedevice/internal/keymap"
-	"sharedevice/internal/server"
+	"crossdesk/internal/capture"
+	"crossdesk/internal/inject"
+	"crossdesk/internal/keymap"
+	"crossdesk/internal/server"
 )
 
 type recorder struct {

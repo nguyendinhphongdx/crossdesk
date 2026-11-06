@@ -27,13 +27,13 @@ type Beacon struct {
 	MAC       []byte  `json:"mac,omitempty"`
 }
 
-const beaconApp = "share-device/1"
+const beaconApp = "crossdesk/1"
 
 func groupKey(password string) []byte {
 	if password == "" {
 		return nil
 	}
-	k, _ := pbkdf2.Key(sha256.New, password, []byte("share-device group v1"), 100_000, 32)
+	k, _ := pbkdf2.Key(sha256.New, password, []byte("crossdesk group v1"), 100_000, 32)
 	return k
 }
 

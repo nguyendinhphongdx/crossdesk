@@ -47,7 +47,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: macos
-          path: dist/ShareDevice-macOS-universal.zip
+          path: dist/Crossdesk-macOS-universal.zip
           if-no-files-found: error
 
   windows-linux:
@@ -65,8 +65,8 @@ jobs:
         with:
           name: windows-linux
           path: |
-            dist/ShareDevice-Windows-*.exe
-            dist/ShareDevice-Linux-*.tar.gz
+            dist/Crossdesk-Windows-*.exe
+            dist/Crossdesk-Linux-*.tar.gz
           if-no-files-found: error
 
   publish:
@@ -83,7 +83,7 @@ jobs:
       - name: Checksums
         working-directory: dist
         run: |
-          sha256sum ShareDevice-* > SHA256SUMS.txt
+          sha256sum Crossdesk-* > SHA256SUMS.txt
           cat SHA256SUMS.txt
       - name: Create or update the release
         env:
@@ -94,5 +94,5 @@ jobs:
           if gh release view "$VERSION" >/dev/null 2>&1; then
             gh release upload "$VERSION" dist/* --clobber
           else
-            gh release create "$VERSION" dist/* --title "Share Device $VERSION" --generate-notes $prerelease --verify-tag
+            gh release create "$VERSION" dist/* --title "Crossdesk $VERSION" --generate-notes $prerelease --verify-tag
           fi

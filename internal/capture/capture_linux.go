@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"sharedevice/internal/keymap"
-	li "sharedevice/internal/linuxinput"
+	"crossdesk/internal/keymap"
+	li "crossdesk/internal/linuxinput"
 )
 
 // Linux capture reads evdev devices directly, so it works under X11 and

@@ -4,7 +4,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"sharedevice/internal/keymap"
+	"crossdesk/internal/keymap"
 )
 
 var (

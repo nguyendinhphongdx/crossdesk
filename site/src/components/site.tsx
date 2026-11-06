@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useId, useState } from "react"
 import { ArrowRight, Download, Github, Menu, Moon, Sun } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -7,21 +7,22 @@ import { BASE, REPO_URL, latestDownloadUrl, OS_NAME } from "@/lib/config"
 import { recommendedAsset, usePlatform } from "@/lib/platform"
 import { cn } from "@/lib/utils"
 
+/** Crossdesk mark: two screens as friendly eyes, the smile ends in a cursor. */
 export function Logo({ className }: { className?: string }) {
+  const id = useId()
   return (
-    <svg viewBox="0 0 32 32" className={cn("size-7", className)} aria-hidden="true">
+    <svg viewBox="0 0 64 64" className={cn("size-7", className)} aria-hidden="true">
       <defs>
-        <linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="oklch(0.62 0.2 275)" />
-          <stop offset="1" stopColor="oklch(0.48 0.22 265)" />
+        <linearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#6366F1" />
+          <stop offset="1" stopColor="#A855F7" />
         </linearGradient>
       </defs>
-      <rect width="32" height="32" rx="8" fill="url(#logo-g)" />
-      <g fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="5" y="7" width="10" height="8" rx="1.5" />
-        <rect x="17" y="17" width="10" height="8" rx="1.5" />
-        <path d="M15 11h4a2 2 0 0 1 2 2v4" />
-      </g>
+      <rect width="64" height="64" rx="16" fill={`url(#${id})`} />
+      <rect x="10" y="15" width="18" height="14" rx="4.5" fill="#fff" />
+      <rect x="36" y="15" width="18" height="14" rx="4.5" fill="#fff" />
+      <path d="M16 38 Q28 50 39 44" fill="none" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" />
+      <path d="M42 35.5 L42.6 51 L46.4 47.4 L49.4 53.2 L52.2 51.8 L49.3 46.2 L54.6 45.6 Z" fill="#fff" stroke="#fff" strokeWidth="2.2" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -90,7 +91,7 @@ export function SiteHeader({ active }: { active?: "home" | "download" }) {
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4 sm:px-6">
         <a href={BASE} className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight">
           <Logo className="size-7" />
-          Share Device
+          Crossdesk
         </a>
         <nav className="hidden items-center gap-1 text-sm md:flex" aria-label="Chính">
           {NAV.map((n) => (
@@ -116,7 +117,7 @@ export function SiteHeader({ active }: { active?: "home" | "download" }) {
               <Button variant="ghost" size="icon" className="md:hidden" aria-label="Mở menu"><Menu /></Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[85%] p-6">
-              <SheetTitle className="flex items-center gap-2.5"><Logo className="size-6" /> Share Device</SheetTitle>
+              <SheetTitle className="flex items-center gap-2.5"><Logo className="size-6" /> Crossdesk</SheetTitle>
               <nav className="mt-4 flex flex-col" aria-label="Menu di động">
                 {NAV.map((n) => (
                   <SheetClose asChild key={n.href}>
@@ -160,7 +161,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div>
           <a href={BASE} className="flex items-center gap-2.5 font-semibold tracking-tight">
-            <Logo className="size-6" /> Share Device
+            <Logo className="size-6" /> Crossdesk
           </a>
           <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
             Một bàn phím, một con chuột cho mọi máy tính trên bàn làm việc của bạn.
@@ -182,7 +183,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t">
         <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span>© {new Date().getFullYear()} Share Device. Mã nguồn mở trên GitHub.</span>
+          <span>© {new Date().getFullYear()} Crossdesk. Mã nguồn mở trên GitHub.</span>
           <span>Không thu thập dữ liệu · Không cần tài khoản · Hoạt động hoàn toàn trong mạng LAN</span>
         </div>
       </div>

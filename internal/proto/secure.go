@@ -17,13 +17,13 @@ import (
 )
 
 // Wire format:
-//   server -> client (plaintext): "SHDV1" + 16-byte random salt
+//   server -> client (plaintext): "XDSK1" + 16-byte random salt
 //   then both sides send frames: uint16 length + AES-256-GCM ciphertext.
 // Key = PBKDF2-SHA256(password, salt). Nonce = direction byte + 64-bit counter,
 // so frames cannot be replayed, reordered or reflected. A fresh salt per session
 // means a recorded session cannot be replayed later.
 
-const magic = "SHDV1"
+const magic = "XDSK1"
 
 const (
 	dirServer = 1
@@ -78,7 +78,7 @@ func ClientHandshake(c net.Conn, password string) (*Conn, error) {
 	}
 	c.SetReadDeadline(time.Time{})
 	if string(hdr[:len(magic)]) != magic {
-		return nil, errors.New("not a share-device server (bad magic)")
+		return nil, errors.New("not a crossdesk server (bad magic)")
 	}
 	aead, err := deriveAEAD(password, hdr[len(magic):])
 	if err != nil {

@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Share Device
+Name=Crossdesk
 Comment=Share one keyboard and mouse between computers
-Exec=share-device
-Icon=input-mouse
+Exec=crossdesk
+Icon=crossdesk
 Terminal=false
 Categories=Utility;

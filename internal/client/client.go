@@ -8,9 +8,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"sharedevice/internal/inject"
-	"sharedevice/internal/keymap"
-	"sharedevice/internal/proto"
+	"crossdesk/internal/inject"
+	"crossdesk/internal/keymap"
+	"crossdesk/internal/proto"
 )
 
 type Config struct {

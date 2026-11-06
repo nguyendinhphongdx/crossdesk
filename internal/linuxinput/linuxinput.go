@@ -113,7 +113,7 @@ type userDev struct {
 }
 
 // DevicePrefix marks our own virtual devices so the capturer ignores them.
-const DevicePrefix = "share-device"
+const DevicePrefix = "crossdesk"
 
 func create(name string, setup func(fd uintptr) error, absMax [2]int32) (*Device, error) {
 	f, err := os.OpenFile("/dev/uinput", os.O_WRONLY|syscall.O_NONBLOCK, 0)
@@ -328,10 +328,10 @@ func CheckAccess() (canInject, canCapture bool) {
 
 var xrandrScreen = regexp.MustCompile(`current (\d+) x (\d+)`)
 
-// ScreenSize returns the desktop size in pixels: SHARE_DEVICE_SCREEN=WxH,
+// ScreenSize returns the desktop size in pixels: CROSSDESK_SCREEN=WxH,
 // else xrandr (X11 / XWayland), else the first connected DRM output.
 func ScreenSize() (int32, int32) {
-	if v := os.Getenv("SHARE_DEVICE_SCREEN"); v != "" {
+	if v := os.Getenv("CROSSDESK_SCREEN"); v != "" {
 		if w, h, ok := parseWxH(v); ok {
 			return w, h
 		}

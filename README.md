@@ -1,4 +1,6 @@
-# Share Device
+<p align="center"><img src="assets/brand/crossdesk-mark-256.png" width="96" alt="Crossdesk"></p>
+
+<h1 align="center">Crossdesk</h1>
 
 Dùng **một bàn phím và một con chuột/trackpad** cho nhiều máy tính trong cùng mạng LAN — **macOS, Windows, Linux**.
 Đẩy con trỏ qua mép màn hình là sang máy bên cạnh. Hai chiều: máy nào làm máy chủ cũng được.
@@ -14,13 +16,13 @@ Tải ở trang web của dự án (tự nhận diện hệ điều hành) hoặ
 
 | Hệ điều hành | File | Ghi chú |
 |---|---|---|
-| macOS 11+ (Apple Silicon & Intel) | `ShareDevice-macOS-universal.zip` | Kéo vào Applications. Lần đầu: chuột phải → Open. Cấp quyền **Accessibility** (+ Input Monitoring). |
-| Windows 10/11 x64 / ARM64 | `ShareDevice-Windows-x64.exe` / `-arm64.exe` | Chạy trực tiếp. Cho phép qua Firewall (mạng Private). |
-| Linux x64 / ARM64 (X11 & Wayland) | `ShareDevice-Linux-x64.tar.gz` / `-arm64` | `sudo ./install.sh`, rồi đăng xuất/đăng nhập lại (cấp quyền `/dev/uinput` + nhóm `input`). |
+| macOS 11+ (Apple Silicon & Intel) | `Crossdesk-macOS-universal.zip` | Kéo vào Applications. Lần đầu: chuột phải → Open. Cấp quyền **Accessibility** (+ Input Monitoring). |
+| Windows 10/11 x64 / ARM64 | `Crossdesk-Windows-x64.exe` / `-arm64.exe` | Chạy trực tiếp. Cho phép qua Firewall (mạng Private). |
+| Linux x64 / ARM64 (X11 & Wayland) | `Crossdesk-Linux-x64.tar.gz` / `-arm64` | `sudo ./install.sh`, rồi đăng xuất/đăng nhập lại (cấp quyền `/dev/uinput` + nhóm `input`). |
 
 ## Sử dụng
 
-1. Mở Share Device trên mọi máy — bảng điều khiển tự mở trong trình duyệt (`http://127.0.0.1:24801`).
+1. Mở Crossdesk trên mọi máy — bảng điều khiển tự mở trong trình duyệt (`http://127.0.0.1:24801`).
 2. Đặt **cùng một mật khẩu nhóm** trên các máy.
 3. Bấm **Làm máy chủ** ở máy có bàn phím/chuột bạn muốn dùng. Các máy khác tự thành máy khách.
 4. Kéo thả các màn hình trong lưới cho giống vị trí thật. Đẩy chuột qua mép để chuyển máy.
@@ -40,7 +42,7 @@ Cổng mạng: TCP **24800** (input, mã hoá), UDP **24802** (tìm máy), `127.
 
 | Thư mục | Vai trò |
 |---|---|
-| `cmd/share-device` | Ứng dụng: khởi động agent + web UI, mở trình duyệt, một phiên bản duy nhất |
+| `cmd/crossdesk` | Ứng dụng: khởi động agent + web UI, mở trình duyệt, một phiên bản duy nhất |
 | `internal/agent` | Tìm máy, đồng bộ cấu hình nhóm (máy chủ, sơ đồ), tự chuyển vai trò |
 | `internal/server` | Định tuyến con trỏ qua lưới màn hình, nhiều máy khách |
 | `internal/client` | Nhận input, giả lập, tự kết nối lại |
@@ -56,8 +58,8 @@ Cổng mạng: TCP **24800** (input, mã hoá), UDP **24802** (tìm máy), `127.
 ## Build
 
 ```bash
-make mac                   # dist/ShareDevice-macOS-universal.zip (cần macOS)
-make windows-linux         # dist/ShareDevice-Windows-*.exe, dist/ShareDevice-Linux-*.tar.gz
+make mac                   # dist/Crossdesk-macOS-universal.zip (cần macOS)
+make windows-linux         # dist/Crossdesk-Windows-*.exe, dist/Crossdesk-Linux-*.tar.gz
 make test
 make site                  # site/dist
 ```
@@ -84,6 +86,6 @@ Trang tải về luôn trỏ tới `releases/latest/download/<file>`, nên khôn
 
 - Chưa chia sẻ clipboard / kéo thả file.
 - App macOS chỉ ký ad-hoc (chưa notarize) → Gatekeeper cảnh báo lần đầu. Mỗi bản build mới có thể phải cấp lại quyền Accessibility.
-- Windows: không điều khiển được màn hình khoá/UAC; muốn điều khiển app chạy quyền Admin thì chạy Share Device bằng quyền Admin.
+- Windows: không điều khiển được màn hình khoá/UAC; muốn điều khiển app chạy quyền Admin thì chạy Crossdesk bằng quyền Admin.
 - Linux máy chủ: vị trí con trỏ được ước lượng từ chuyển động (Wayland không cho đọc vị trí thật) — phải "đẩy" qua mép một chút mới chuyển máy. Touchpad: một ngón di chuyển, hai ngón cuộn; chạm-để-click chưa hỗ trợ khi đang điều khiển máy khác.
-- Linux máy khách: kích thước màn hình lấy từ `xrandr` hoặc DRM; có thể ép bằng `SHARE_DEVICE_SCREEN=2560x1440`.
+- Linux máy khách: kích thước màn hình lấy từ `xrandr` hoặc DRM; có thể ép bằng `CROSSDESK_SCREEN=2560x1440`.

@@ -1,4 +1,4 @@
-// Share Device: share one keyboard and mouse/trackpad between computers on a LAN.
+// Crossdesk: share one keyboard and mouse/trackpad between computers on a LAN.
 // Run it on every machine; it opens a control page in the browser where you
 // pick the host and arrange the screens.
 package main
@@ -19,8 +19,8 @@ import (
 	"strconv"
 	"time"
 
-	"sharedevice/internal/agent"
-	"sharedevice/internal/web"
+	"crossdesk/internal/agent"
+	"crossdesk/internal/web"
 )
 
 const uiPort = 24801
@@ -42,7 +42,7 @@ func main() {
 	os.MkdirAll(agent.ConfigDir(), 0o700)
 	ring := &web.LogRing{}
 	writers := []io.Writer{ring}
-	if f, err := os.OpenFile(filepath.Join(agent.ConfigDir(), "share-device.log"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600); err == nil {
+	if f, err := os.OpenFile(filepath.Join(agent.ConfigDir(), "crossdesk.log"), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600); err == nil {
 		writers = append(writers, f)
 	}
 	if fi, err := os.Stderr.Stat(); err == nil && fi.Mode()&os.ModeCharDevice != 0 {
@@ -71,7 +71,7 @@ func main() {
 		os.WriteFile(uiInfoPath(), b, 0o600)
 	}
 
-	log.Printf("Share Device %s (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
+	log.Printf("Crossdesk %s (%s/%s)", version, runtime.GOOS, runtime.GOARCH)
 	a, err := agent.New(version)
 	if err != nil {
 		log.Fatal(err)

@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"sharedevice/internal/capture"
-	"sharedevice/internal/client"
-	"sharedevice/internal/inject"
-	"sharedevice/internal/server"
+	"crossdesk/internal/capture"
+	"crossdesk/internal/client"
+	"crossdesk/internal/inject"
+	"crossdesk/internal/server"
 )
 
 const (

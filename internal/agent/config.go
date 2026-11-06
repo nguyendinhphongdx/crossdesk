@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"sharedevice/internal/server"
+	"crossdesk/internal/server"
 )
 
 // Shared is the group-wide configuration, replicated between all devices that
@@ -50,7 +50,7 @@ func ConfigDir() string {
 	if err != nil {
 		d = "."
 	}
-	return filepath.Join(d, "share-device")
+	return filepath.Join(d, "crossdesk")
 }
 
 func configPath() string { return filepath.Join(ConfigDir(), "config.json") }

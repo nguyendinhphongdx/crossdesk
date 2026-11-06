@@ -53,7 +53,7 @@ func TestUinputRoundTrip(t *testing.T) {
 
 	// Our own devices must be ignored by the capturer.
 	if _, err := OpenPhysical(pk.Path); err == nil {
-		t.Fatal("OpenPhysical must skip share-device's own devices")
+		t.Fatal("OpenPhysical must skip crossdesk's own devices")
 	}
 
 	if err := kbd.Emit([3]int32{EvKey, KeyA, 1}); err != nil {

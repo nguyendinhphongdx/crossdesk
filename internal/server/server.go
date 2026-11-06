@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"sharedevice/internal/capture"
-	"sharedevice/internal/proto"
+	"crossdesk/internal/capture"
+	"crossdesk/internal/proto"
 )
 
 // Cell is a position on the layout grid.

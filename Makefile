@@ -4,7 +4,7 @@ VERSION ?= dev
 
 all: mac windows-linux
 
-# macOS universal app bundle -> dist/ShareDevice-macOS-universal.zip
+# macOS universal app bundle -> dist/Crossdesk-macOS-universal.zip
 mac:
 	VERSION=$(VERSION) scripts/build-macos.sh
 

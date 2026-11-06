@@ -27,27 +27,27 @@ const install: Record<OS, { title: string; steps: React.ReactNode[] }> = {
   macos: {
     title: "Cài trên macOS",
     steps: [
-      <>Giải nén <Code>ShareDevice-macOS-universal.zip</Code> và kéo <b>Share Device</b> vào thư mục <b>Applications</b>.</>,
-      <>Lần đầu mở: bấm chuột phải vào ứng dụng → <b>Open</b> → <b>Open</b> (ứng dụng chưa được Apple công chứng). Hoặc chạy:<Block>{"xattr -dr com.apple.quarantine \"/Applications/Share Device.app\""}</Block></>,
-      <>Vào <b>System Settings → Privacy &amp; Security → Accessibility</b> (và <b>Input Monitoring</b>), bật <b>Share Device</b>, rồi mở lại ứng dụng.</>,
+      <>Giải nén <Code>Crossdesk-macOS-universal.zip</Code> và kéo <b>Crossdesk</b> vào thư mục <b>Applications</b>.</>,
+      <>Lần đầu mở: bấm chuột phải vào ứng dụng → <b>Open</b> → <b>Open</b> (ứng dụng chưa được Apple công chứng). Hoặc chạy:<Block>{"xattr -dr com.apple.quarantine \"/Applications/Crossdesk.app\""}</Block></>,
+      <>Vào <b>System Settings → Privacy &amp; Security → Accessibility</b> (và <b>Input Monitoring</b>), bật <b>Crossdesk</b>, rồi mở lại ứng dụng.</>,
       <>Bảng điều khiển tự mở trong trình duyệt. Ứng dụng chạy nền, không có biểu tượng trên Dock.</>,
     ],
   },
   windows: {
     title: "Cài trên Windows",
     steps: [
-      <>Chạy <Code>ShareDevice-Windows-x64.exe</Code> (hoặc bản ARM64). Không cần cài đặt.</>,
+      <>Chạy <Code>Crossdesk-Windows-x64.exe</Code> (hoặc bản ARM64). Không cần cài đặt.</>,
       <>Nếu SmartScreen cảnh báo: bấm <b>More info</b> → <b>Run anyway</b>.</>,
       <>Khi Windows Firewall hỏi, chọn cho phép trên mạng <b>Private</b> (cổng TCP 24800, UDP 24802).</>,
-      <>Muốn điều khiển cả các cửa sổ chạy quyền Administrator thì chạy Share Device bằng <b>Run as administrator</b>.</>,
+      <>Muốn điều khiển cả các cửa sổ chạy quyền Administrator thì chạy Crossdesk bằng <b>Run as administrator</b>.</>,
     ],
   },
   linux: {
     title: "Cài trên Linux",
     steps: [
-      <>Giải nén và chạy script cài đặt (cần sudo một lần để cấp quyền <Code>/dev/uinput</Code> và nhóm <Code>input</Code>):<Block>{"tar xzf ShareDevice-Linux-x64.tar.gz\ncd ShareDevice-Linux-x64\nsudo ./install.sh"}</Block></>,
+      <>Giải nén và chạy script cài đặt (cần sudo một lần để cấp quyền <Code>/dev/uinput</Code> và nhóm <Code>input</Code>):<Block>{"tar xzf Crossdesk-Linux-x64.tar.gz\ncd Crossdesk-Linux-x64\nsudo ./install.sh"}</Block></>,
       <>Đăng xuất rồi đăng nhập lại để quyền nhóm <Code>input</Code> có hiệu lực.</>,
-      <>Mở <b>Share Device</b> từ menu ứng dụng, hoặc chạy <Code>share-device</Code> trong terminal.</>,
+      <>Mở <b>Crossdesk</b> từ menu ứng dụng, hoặc chạy <Code>crossdesk</Code> trong terminal.</>,
       <>Chạy được trên cả X11 và Wayland. Nếu dùng tường lửa (ufw), mở cổng TCP 24800 và UDP 24802 trong mạng LAN.</>,
     ],
   },
@@ -76,7 +76,7 @@ export function DownloadPage() {
         </div>
         <div className="mx-auto max-w-3xl px-4 pt-16 pb-20 text-center sm:px-6 sm:pt-24">
           <div className="font-mono text-xs font-medium tracking-wider text-primary uppercase">Tải về</div>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.03em] sm:text-6xl">Tải Share Device</h1>
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.03em] sm:text-6xl">Tải Crossdesk</h1>
           <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
             Cài trên tất cả các máy bạn muốn dùng chung bàn phím và chuột.
             {version && <> Phiên bản <b className="text-foreground">{version}</b>{published && <> · phát hành {published}</>}.</>}
@@ -108,7 +108,7 @@ export function DownloadPage() {
                 <div className="flex items-start gap-4">
                   <Laptop className="mt-1 size-6 shrink-0 text-muted-foreground" />
                   <div>
-                    <div className="font-semibold">Share Device dành cho máy tính</div>
+                    <div className="font-semibold">Crossdesk dành cho máy tính</div>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {platform.os === "mobile"
                         ? "Bạn đang xem trên điện thoại. Hãy mở trang này trên máy tính, hoặc chọn bản phù hợp bên dưới."

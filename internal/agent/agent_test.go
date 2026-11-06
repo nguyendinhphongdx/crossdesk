@@ -3,7 +3,7 @@ package agent
 import (
 	"testing"
 
-	"sharedevice/internal/server"
+	"crossdesk/internal/server"
 )
 
 func TestBeaconSignVerify(t *testing.T) {

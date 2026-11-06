@@ -3,8 +3,8 @@ package server
 import (
 	"testing"
 
-	"sharedevice/internal/capture"
-	"sharedevice/internal/proto"
+	"crossdesk/internal/capture"
+	"crossdesk/internal/proto"
 )
 
 type fakePF struct {

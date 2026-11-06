@@ -1,14 +1,16 @@
 #!/bin/sh
-# Installs Share Device system-wide. Usage: sudo ./install.sh
+# Installs Crossdesk system-wide. Usage: sudo ./install.sh
 set -e
 if [ "$(id -u)" -ne 0 ]; then
   exec sudo "$0" "$@"
 fi
 cd "$(dirname "$0")"
-install -m 0755 share-device /usr/local/bin/share-device
-install -m 0755 share-device-setup /usr/local/bin/share-device-setup
-install -d /usr/local/share/share-device
-install -m 0644 70-share-device.rules /usr/local/share/share-device/70-share-device.rules
-install -m 0644 share-device.desktop /usr/share/applications/share-device.desktop
-/usr/local/bin/share-device-setup
-echo "Installed. Open 'Share Device' from your application menu (after logging back in)."
+install -m 0755 crossdesk /usr/local/bin/crossdesk
+install -m 0755 crossdesk-setup /usr/local/bin/crossdesk-setup
+install -d /usr/local/share/crossdesk
+install -m 0644 70-crossdesk.rules /usr/local/share/crossdesk/70-crossdesk.rules
+install -m 0644 crossdesk.desktop /usr/share/applications/crossdesk.desktop
+install -D -m 0644 crossdesk.png /usr/share/icons/hicolor/256x256/apps/crossdesk.png
+gtk-update-icon-cache -q /usr/share/icons/hicolor 2>/dev/null || true
+/usr/local/bin/crossdesk-setup
+echo "Installed. Open 'Crossdesk' from your application menu (after logging back in)."

@@ -39,7 +39,7 @@ import "C"
 import (
 	"time"
 
-	"sharedevice/internal/keymap"
+	"crossdesk/internal/keymap"
 )
 
 // Flag masks: device-independent | device-dependent (left/right) bits.

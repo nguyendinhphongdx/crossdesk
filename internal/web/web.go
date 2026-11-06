@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"sharedevice/internal/agent"
-	"sharedevice/internal/server"
+	"crossdesk/internal/agent"
+	"crossdesk/internal/server"
 )
 
 //go:embed index.html

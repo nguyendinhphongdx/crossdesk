@@ -104,11 +104,11 @@ const platformRows: { label: string; mac: Cell; win: Cell; linux: Cell }[] = [
 ]
 
 const faqs = [
-  { q: "Share Device có miễn phí không?", a: "Có. Share Device miễn phí và mã nguồn mở trên GitHub. Không quảng cáo, không thu thập dữ liệu, không cần tài khoản." },
+  { q: "Crossdesk có miễn phí không?", a: "Có. Crossdesk miễn phí và mã nguồn mở trên GitHub. Không quảng cáo, không thu thập dữ liệu, không cần tài khoản." },
   { q: "Có cần Internet hay máy chủ đám mây không?", a: "Không. Các máy nói chuyện trực tiếp với nhau trong mạng nội bộ (Wi-Fi hoặc cáp). Không có dịch vụ trung gian nào, kể cả của chúng tôi." },
   { q: "Gõ mật khẩu trên máy được điều khiển có an toàn không?", a: "Có. Mọi phím bấm được mã hoá AES-256-GCM bằng khoá dẫn xuất từ mật khẩu nhóm (PBKDF2), mỗi phiên một khoá riêng, có chống phát lại. Người khác trong cùng mạng không đọc được và không thể giả làm máy trong nhóm." },
   { q: "Độ trễ thế nào?", a: "Sự kiện chuột và phím được gửi ngay qua TCP trong mạng LAN, không gom lô, không qua máy chủ trung gian. Độ trễ chủ yếu là độ trễ của mạng LAN, thường chỉ vài mili giây." },
-  { q: "Dùng được trên Wayland không?", a: "Được. Trên Linux, Share Device làm việc trực tiếp với lớp input của kernel (evdev và uinput), nên chạy được trên cả X11 lẫn Wayland. Script cài đặt cấp quyền một lần." },
+  { q: "Dùng được trên Wayland không?", a: "Được. Trên Linux, Crossdesk làm việc trực tiếp với lớp input của kernel (evdev và uinput), nên chạy được trên cả X11 lẫn Wayland. Script cài đặt cấp quyền một lần." },
   { q: "Vì sao macOS yêu cầu quyền Accessibility?", a: "Để đọc chuột và bàn phím khi Mac làm máy chủ, và để thao tác khi Mac được điều khiển. Đây là quyền bắt buộc với mọi ứng dụng chia sẻ bàn phím trên macOS." },
   { q: "Một máy chủ điều khiển được bao nhiêu máy?", a: "Không giới hạn cứng. Mỗi máy là một ô trên sơ đồ; con trỏ đi xuyên từ máy này sang máy khác theo đúng vị trí bạn sắp xếp." },
   { q: "Có chia sẻ clipboard hay kéo thả file không?", a: "Chưa. Phiên bản hiện tại tập trung vào chuột và bàn phím. Clipboard nằm trong lộ trình phát triển." },
