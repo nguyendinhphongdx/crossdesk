@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { CheckCircle2, Download as DownloadIcon, ExternalLink, FileCheck2, Info, Laptop } from "lucide-react"
 
-import { OsIcon, SiteFooter, SiteHeader } from "@/components/site"
+import { OsIcon, SectionHeading, SiteFooter, SiteHeader } from "@/components/site"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -69,18 +69,20 @@ export function DownloadPage() {
     <div className="min-h-screen">
       <SiteHeader active="download" />
 
-      <section className="relative overflow-hidden border-b">
-        <div className="pointer-events-none absolute inset-x-0 top-[-12rem] -z-10 flex justify-center blur-3xl" aria-hidden="true">
-          <div className="aspect-[2/1] w-[50rem] bg-gradient-to-tr from-primary/25 via-primary/10 to-transparent opacity-70" />
+      <section className="relative border-b">
+        <div className="bg-grid mask-radial pointer-events-none absolute inset-0 -top-16 -z-10" aria-hidden="true" />
+        <div className="pointer-events-none absolute inset-x-0 -top-40 -z-10 flex justify-center" aria-hidden="true">
+          <div className="h-[24rem] w-[56rem] rounded-full bg-primary/15 blur-[120px] dark:bg-primary/20" />
         </div>
-        <div className="mx-auto max-w-3xl px-4 py-16 text-center sm:px-6 sm:py-20">
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Tải Share Device</h1>
-          <p className="mt-4 text-muted-foreground">
+        <div className="mx-auto max-w-3xl px-4 pt-16 pb-20 text-center sm:px-6 sm:pt-24">
+          <div className="font-mono text-xs font-medium tracking-wider text-primary uppercase">Tải về</div>
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.03em] sm:text-6xl">Tải Share Device</h1>
+          <p className="mx-auto mt-5 max-w-xl text-lg text-muted-foreground">
             Cài trên tất cả các máy bạn muốn dùng chung bàn phím và chuột.
             {version && <> Phiên bản <b className="text-foreground">{version}</b>{published && <> · phát hành {published}</>}.</>}
           </p>
 
-          <Card className="mx-auto mt-10 max-w-xl text-left">
+          <Card className="mx-auto mt-10 max-w-xl py-7 text-left shadow-[0_20px_60px_-20px_rgb(0_0_0/0.25)]">
             <CardContent>
               {platform === null ? (
                 <div className="h-24 animate-pulse rounded-lg bg-muted" />
@@ -125,9 +127,9 @@ export function DownloadPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <h2 className="text-2xl font-semibold tracking-tight">Tất cả bản tải về</h2>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+        <SectionHeading eyebrow="Tất cả nền tảng" title="Chọn bản phù hợp với máy của bạn" />
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {ASSETS.map((a) => {
             const info = assetInfo(release, a)
             const isRec = rec?.id === a.id
@@ -160,10 +162,10 @@ export function DownloadPage() {
         </div>
       </section>
 
-      <section className="border-t bg-muted/30">
-        <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Hướng dẫn cài đặt</h2>
-          <Tabs value={tab} onValueChange={(v) => setTab(v as OS)} className="mt-6">
+      <section className="border-t bg-surface">
+        <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6">
+          <SectionHeading eyebrow="Cài đặt" title="Hướng dẫn cài đặt" />
+          <Tabs value={tab} onValueChange={(v) => setTab(v as OS)} className="mt-10">
             <TabsList className="w-full sm:w-fit">
               {(["macos", "windows", "linux"] as OS[]).map((os) => (
                 <TabsTrigger key={os} value={os}><OsIcon os={os} /> {OS_NAME[os]}</TabsTrigger>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
-import { Download, Github, Moon, Sun } from "lucide-react"
+import { ArrowRight, Download, Github, Menu, Moon, Sun } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { BASE, REPO_URL, latestDownloadUrl, OS_NAME } from "@/lib/config"
 import { recommendedAsset, usePlatform } from "@/lib/platform"
 import { cn } from "@/lib/utils"
@@ -9,7 +10,13 @@ import { cn } from "@/lib/utils"
 export function Logo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" className={cn("size-7", className)} aria-hidden="true">
-      <rect width="32" height="32" rx="8" className="fill-primary" />
+      <defs>
+        <linearGradient id="logo-g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="oklch(0.62 0.2 275)" />
+          <stop offset="1" stopColor="oklch(0.48 0.22 265)" />
+        </linearGradient>
+      </defs>
+      <rect width="32" height="32" rx="8" fill="url(#logo-g)" />
       <g fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <rect x="5" y="7" width="10" height="8" rx="1.5" />
         <rect x="17" y="17" width="10" height="8" rx="1.5" />
@@ -44,7 +51,7 @@ export function LinuxIcon({ className }: { className?: string }) {
 }
 
 export function OsIcon({ os, className }: { os: string; className?: string }) {
-  if (os === "macos") return <AppleIcon className={className} />
+  if (os === "macos" || os === "darwin") return <AppleIcon className={className} />
   if (os === "windows") return <WindowsIcon className={className} />
   return <LinuxIcon className={className} />
 }
@@ -58,38 +65,71 @@ function useTheme() {
   return [dark, setDark] as const
 }
 
+const NAV = [
+  { href: "#features", label: "Tính năng" },
+  { href: "#how", label: "Cách hoạt động" },
+  { href: "#security", label: "Bảo mật" },
+  { href: "#platforms", label: "Nền tảng" },
+  { href: "#faq", label: "Hỏi đáp" },
+]
+
 export function SiteHeader({ active }: { active?: "home" | "download" }) {
   const [dark, setDark] = useTheme()
-  const nav = [
-    { href: `${BASE}#features`, label: "Tính năng" },
-    { href: `${BASE}#how`, label: "Cách hoạt động" },
-    { href: `${BASE}#security`, label: "Bảo mật" },
-    { href: `${BASE}#faq`, label: "Hỏi đáp" },
-  ]
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 8)
+    on()
+    window.addEventListener("scroll", on, { passive: true })
+    return () => window.removeEventListener("scroll", on)
+  }, [])
+  const href = (h: string) => (active === "home" ? h : `${BASE}${h}`)
+
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
-        <a href={BASE} className="flex items-center gap-2.5 font-semibold tracking-tight">
-          <Logo />
-          <span>Share Device</span>
+    <header className={cn("sticky top-0 z-40 transition-[background-color,border-color,backdrop-filter] duration-200",
+      scrolled ? "border-b bg-background/75 backdrop-blur-xl" : "border-b border-transparent")}>
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4 sm:px-6">
+        <a href={BASE} className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight">
+          <Logo className="size-7" />
+          Share Device
         </a>
-        <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
-          {nav.map((n) => (
-            <a key={n.href} href={n.href} className="transition-colors hover:text-foreground">{n.label}</a>
+        <nav className="hidden items-center gap-1 text-sm md:flex" aria-label="Chính">
+          {NAV.map((n) => (
+            <a key={n.href} href={href(n.href)} className="rounded-md px-3 py-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+              {n.label}
+            </a>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1">
           <Button variant="ghost" size="icon" aria-label="Đổi giao diện sáng/tối" onClick={() => setDark(!dark)}>
             {dark ? <Sun /> : <Moon />}
           </Button>
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" asChild className="hidden sm:inline-flex">
             <a href={REPO_URL} aria-label="Mã nguồn trên GitHub"><Github /></a>
           </Button>
           {active !== "download" && (
-            <Button size="sm" asChild className="ml-1">
+            <Button size="sm" asChild className="ml-1 hidden sm:inline-flex">
               <a href={`${BASE}download/`}><Download /> Tải về</a>
             </Button>
           )}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Mở menu"><Menu /></Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[85%] p-6">
+              <SheetTitle className="flex items-center gap-2.5"><Logo className="size-6" /> Share Device</SheetTitle>
+              <nav className="mt-4 flex flex-col" aria-label="Menu di động">
+                {NAV.map((n) => (
+                  <SheetClose asChild key={n.href}>
+                    <a href={href(n.href)} className="border-b py-3.5 text-base">{n.label}</a>
+                  </SheetClose>
+                ))}
+                <a href={REPO_URL} className="flex items-center gap-2 border-b py-3.5 text-base"><Github className="size-4" /> GitHub</a>
+              </nav>
+              <Button asChild className="mt-4">
+                <a href={`${BASE}download/`}><Download /> Tải về miễn phí</a>
+              </Button>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>
@@ -97,41 +137,93 @@ export function SiteHeader({ active }: { active?: "home" | "download" }) {
 }
 
 export function SiteFooter() {
+  const cols = [
+    { title: "Sản phẩm", links: [
+      { href: `${BASE}#features`, label: "Tính năng" },
+      { href: `${BASE}#security`, label: "Bảo mật" },
+      { href: `${BASE}#platforms`, label: "Nền tảng hỗ trợ" },
+      { href: `${BASE}download/`, label: "Tải về" },
+    ] },
+    { title: "Tài nguyên", links: [
+      { href: `${REPO_URL}#readme`, label: "Tài liệu" },
+      { href: `${REPO_URL}/releases`, label: "Ghi chú phát hành" },
+      { href: `${BASE}#faq`, label: "Câu hỏi thường gặp" },
+    ] },
+    { title: "Mã nguồn", links: [
+      { href: REPO_URL, label: "GitHub" },
+      { href: `${REPO_URL}/issues`, label: "Báo lỗi" },
+      { href: `${REPO_URL}/issues/new`, label: "Đề xuất tính năng" },
+    ] },
+  ]
   return (
-    <footer className="border-t">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10 text-sm text-muted-foreground sm:flex-row sm:items-center sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <Logo className="size-6" />
-          <span>Share Device — một bàn phím, một con chuột, mọi máy tính.</span>
+    <footer className="border-t bg-surface">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+        <div>
+          <a href={BASE} className="flex items-center gap-2.5 font-semibold tracking-tight">
+            <Logo className="size-6" /> Share Device
+          </a>
+          <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
+            Một bàn phím, một con chuột cho mọi máy tính trên bàn làm việc của bạn.
+          </p>
+          <div className="mt-5 flex items-center gap-3 text-muted-foreground">
+            <AppleIcon /><WindowsIcon /><LinuxIcon />
+          </div>
         </div>
-        <div className="flex gap-5 sm:ml-auto">
-          <a href={`${BASE}download/`} className="hover:text-foreground">Tải về</a>
-          <a href={`${REPO_URL}/releases`} className="hover:text-foreground">Các phiên bản</a>
-          <a href={REPO_URL} className="hover:text-foreground">GitHub</a>
-          <a href={`${REPO_URL}/issues`} className="hover:text-foreground">Báo lỗi</a>
+        {cols.map((c) => (
+          <div key={c.title}>
+            <div className="text-sm font-medium">{c.title}</div>
+            <ul className="mt-4 space-y-2.5 text-sm">
+              {c.links.map((l) => (
+                <li key={l.label}><a href={l.href} className="text-muted-foreground transition-colors hover:text-foreground">{l.label}</a></li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      <div className="border-t">
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <span>© {new Date().getFullYear()} Share Device. Mã nguồn mở trên GitHub.</span>
+          <span>Không thu thập dữ liệu · Không cần tài khoản · Hoạt động hoàn toàn trong mạng LAN</span>
         </div>
       </div>
     </footer>
   )
 }
 
-/** Big download button pointing at the build for the visitor's OS. */
-export function SmartDownloadButton({ className }: { className?: string }) {
+/** Primary CTA pointing at the build for the visitor's OS. */
+export function SmartDownloadButton({ className, variant }: { className?: string; variant?: "default" | "outline" | "secondary" }) {
   const platform = usePlatform()
   const asset = recommendedAsset(platform)
   if (!asset) {
     return (
-      <Button size="lg" asChild className={className}>
+      <Button size="lg" variant={variant} asChild className={className}>
         <a href={`${BASE}download/`}><Download /> Tải về miễn phí</a>
       </Button>
     )
   }
   return (
-    <Button size="lg" asChild className={className}>
+    <Button size="lg" variant={variant} asChild className={className}>
       <a href={latestDownloadUrl(asset.file)}>
-        <OsIcon os={asset.os} className="size-5" /> Tải cho {OS_NAME[asset.os]}
-        {asset.arch === "arm64" ? " ARM" : ""}
+        <OsIcon os={asset.os} className="size-[18px]" /> Tải cho {OS_NAME[asset.os]}{asset.arch === "arm64" ? " ARM" : ""}
       </a>
     </Button>
+  )
+}
+
+export function SectionHeading({ eyebrow, title, desc, center }: { eyebrow: string; title: React.ReactNode; desc?: React.ReactNode; center?: boolean }) {
+  return (
+    <div className={cn("max-w-2xl", center && "mx-auto text-center")}>
+      <div className="font-mono text-xs font-medium tracking-wider text-primary uppercase">{eyebrow}</div>
+      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{title}</h2>
+      {desc && <p className="mt-4 text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">{desc}</p>}
+    </div>
+  )
+}
+
+export function TextLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a href={href} className="group inline-flex items-center gap-1 text-sm font-medium text-primary">
+      {children}<ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
+    </a>
   )
 }
