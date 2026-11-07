@@ -8,6 +8,7 @@ Dùng **một bàn phím và một con chuột/trackpad** cho nhiều máy tính
 - Tự tìm các máy trong mạng (cùng mật khẩu nhóm = cùng nhóm)
 - Chọn máy chủ và **kéo thả sắp xếp vị trí** màn hình trong bảng điều khiển
 - Tự đổi Cmd ⇄ Ctrl giữa Mac và Windows/Linux
+- Tự cập nhật trong ứng dụng (kiểm tra GitHub Releases, xác minh SHA256, khởi động lại)
 - Mã hoá toàn bộ (PBKDF2 + AES-256-GCM), gói quảng bá ký HMAC
 
 ## Cài đặt
@@ -44,6 +45,7 @@ Cổng mạng: TCP **24800** (input, mã hoá), UDP **24802** (tìm máy), `127.
 |---|---|
 | `cmd/crossdesk` | Ứng dụng: khởi động agent + bảng điều khiển, một phiên bản duy nhất |
 | `internal/ui` | Vỏ ứng dụng: thanh menu + cửa sổ WKWebView (macOS), khay hệ thống + WebView2 (Windows), trình duyệt (Linux) |
+| `internal/updater` | Tự cập nhật: kiểm tra GitHub Releases, tải đúng bản, so SHA256SUMS, thay tại chỗ, khởi động lại |
 | `internal/autostart` | Khởi động cùng hệ thống: LaunchAgent, khoá Run, XDG autostart |
 | `internal/agent` | Tìm máy, đồng bộ cấu hình nhóm (máy chủ, sơ đồ), tự chuyển vai trò |
 | `internal/server` | Định tuyến con trỏ qua lưới màn hình, nhiều máy khách |

@@ -13,6 +13,7 @@ import (
 	"crossdesk/internal/agent"
 	"crossdesk/internal/autostart"
 	"crossdesk/internal/server"
+	"crossdesk/internal/updater"
 )
 
 //go:embed index.html
@@ -45,12 +46,13 @@ func (r *LogRing) Lines() []string {
 }
 
 type Server struct {
-	Agent *agent.Agent
-	Token string
-	Logs  *LogRing
-	Quit  func()
-	Show  func()
-	port  string
+	Agent   *agent.Agent
+	Token   string
+	Logs    *LogRing
+	Quit    func()
+	Show    func()
+	Updater *updater.Updater
+	port    string
 }
 
 // Handler returns the HTTP handler. Every request must target localhost (no
@@ -65,11 +67,17 @@ func (s *Server) Handler(port string) http.Handler {
 		w.Write(indexHTML)
 	})
 	mux.HandleFunc("GET /api/status", s.api(func(r *http.Request) (any, error) {
+		var up *updater.Status
+		if s.Updater != nil {
+			st := s.Updater.Status()
+			up = &st
+		}
 		return struct {
 			agent.Status
-			Logs      []string `json:"logs"`
-			Autostart bool     `json:"autostart"`
-		}{s.Agent.Status(), s.Logs.Lines(), autostart.Enabled()}, nil
+			Logs      []string        `json:"logs"`
+			Autostart bool            `json:"autostart"`
+			Update    *updater.Status `json:"update,omitempty"`
+		}{s.Agent.Status(), s.Logs.Lines(), autostart.Enabled(), up}, nil
 	}))
 	mux.HandleFunc("POST /api/password", s.api(func(r *http.Request) (any, error) {
 		var b struct{ Password string }
@@ -119,6 +127,28 @@ func (s *Server) Handler(port string) http.Handler {
 			return nil, err
 		}
 		return nil, autostart.Set(b.Enabled)
+	}))
+	mux.HandleFunc("POST /api/update/check", s.api(func(r *http.Request) (any, error) {
+		if s.Updater == nil {
+			return nil, nil
+		}
+		return nil, s.Updater.Check()
+	}))
+	mux.HandleFunc("POST /api/update/install", s.api(func(r *http.Request) (any, error) {
+		if s.Updater == nil {
+			return nil, nil
+		}
+		return nil, s.Updater.Install()
+	}))
+	mux.HandleFunc("POST /api/update/auto", s.api(func(r *http.Request) (any, error) {
+		var b struct{ Enabled bool }
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			return nil, err
+		}
+		if s.Updater == nil {
+			return nil, nil
+		}
+		return nil, s.Updater.SetAuto(b.Enabled)
 	}))
 	mux.HandleFunc("POST /api/show", s.api(func(r *http.Request) (any, error) {
 		if s.Show != nil {

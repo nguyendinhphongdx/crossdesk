@@ -20,6 +20,7 @@ import (
 
 	"crossdesk/internal/agent"
 	"crossdesk/internal/ui"
+	"crossdesk/internal/updater"
 	"crossdesk/internal/web"
 )
 
@@ -39,6 +40,8 @@ func main() {
 	hidden := flag.Bool("hidden", false, "start in the background (menu bar / tray icon only)")
 	noBrowser := flag.Bool("no-browser", false, "same as -hidden")
 	flag.Parse()
+	afterUpdate := updater.AfterUpdate()
+	updater.Cleanup()
 
 	os.MkdirAll(agent.ConfigDir(), 0o700)
 	ring := &web.LogRing{}
@@ -53,6 +56,11 @@ func main() {
 	log.SetFlags(log.Ltime)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(uiPort))
+	// After an update the previous version may still be shutting down.
+	for i := 0; err != nil && afterUpdate && i < 40; i++ {
+		time.Sleep(250 * time.Millisecond)
+		ln, err = net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(uiPort))
+	}
 	if err != nil {
 		// Already running: ask it to bring its window to the front.
 		if b, err := os.ReadFile(uiInfoPath()); err == nil {
@@ -85,7 +93,9 @@ func main() {
 		time.Sleep(300 * time.Millisecond)
 		os.Exit(0)
 	}
-	ws := &web.Server{Agent: a, Token: info.Token, Logs: ring, Quit: quit, Show: ui.Show}
+	up := updater.New(version, agent.ConfigDir(), quit)
+	up.Start()
+	ws := &web.Server{Agent: a, Token: info.Token, Logs: ring, Quit: quit, Show: ui.Show, Updater: up}
 	go func() {
 		srv := &http.Server{Handler: ws.Handler(strconv.Itoa(uiPort)), ReadHeaderTimeout: 5 * time.Second}
 		log.Fatal(srv.Serve(ln))

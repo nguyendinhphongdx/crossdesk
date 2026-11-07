@@ -150,6 +150,13 @@ input[type=range] { accent-color: var(--accent); width: 180px; }
 .tray.hot { border-color: var(--accent); background: var(--cell-hot); }
 .tray .empty { color: var(--muted); font-size: 12.5px; padding: 0 8px; }
 
+.update-pill { all: unset; display: flex; align-items: center; gap: 8px; margin: 0 2px 10px; padding: 9px 11px; border-radius: 9px;
+  background: var(--accent-soft); color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: default; }
+.update-pill:hover { filter: brightness(1.05); }
+.update-pill svg { width: 15px; height: 15px; flex: none; }
+.bar { height: 6px; border-radius: 99px; background: var(--cell); overflow: hidden; width: 160px; }
+.bar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+.notes { margin: 0; padding: 12px 18px 16px; white-space: pre-wrap; font: 12.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--muted); max-height: 220px; overflow: auto; border-top: 1px solid var(--line); }
 pre.logs { margin: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 14px 16px; height: calc(100vh - 170px);
   overflow: auto; white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
 .about { text-align: center; padding: 40px 20px; }
@@ -179,6 +186,7 @@ pre.logs { margin: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consol
       <button data-page="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>Giới thiệu</span></button>
     </nav>
     <div class="spacer"></div>
+    <button class="update-pill" id="updatePill" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span id="updatePillText"></span></button>
     <div class="me"><div class="ico" id="meIcon"></div><div class="t"><div class="n" id="meName"></div><div class="s"><i class="status-dot" id="meDot"></i><span id="meStatus"></span></div></div></div>
   </aside>
 
@@ -229,6 +237,14 @@ pre.logs { margin: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consol
             <input type="text" id="nameInput" maxlength="40"><button class="btn" id="nameBtn">Lưu</button></div>
           <div class="row"><div class="lbl"><b>Khởi động cùng hệ thống</b><span>Tự chạy nền khi đăng nhập, chỉ hiện biểu tượng trên thanh menu / khay hệ thống.</span></div>
             <label class="switch"><input type="checkbox" id="autostartOpt"><span></span></label></div>
+        </div>
+        <div class="card" id="updateCard">
+          <div class="ch"><h2>Cập nhật</h2></div>
+          <div class="row"><div class="lbl"><b id="updTitle">Phiên bản</b><span id="updText"></span></div>
+            <span id="updProgress"></span><span id="updActions"></span></div>
+          <div class="row"><div class="lbl"><b>Tự động kiểm tra cập nhật</b><span>Kiểm tra bản mới trên GitHub khi mở ứng dụng và mỗi 6 giờ. Không gửi dữ liệu nào của bạn.</span></div>
+            <label class="switch"><input type="checkbox" id="updAuto"><span></span></label></div>
+          <pre class="notes" id="updNotes" hidden></pre>
         </div>
         <div class="card">
           <div class="ch"><h2>Nhóm &amp; bảo mật</h2></div>
@@ -310,6 +326,15 @@ function go(p) {
 }
 document.querySelectorAll('.nav button').forEach((b) => b.onclick = () => go(b.dataset.page));
 
+// Only touch the DOM when the markup really changed, so buttons are not
+// replaced under the cursor by the once-a-second refresh.
+function setHTML(el, html) {
+  if (typeof el === 'string') el = $(el);
+  if (el.__html === html) return false;
+  el.innerHTML = html; el.__html = html;
+  return true;
+}
+
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600);
@@ -364,13 +389,13 @@ function renderNotices() {
     const why = !host ? 'chưa thấy máy chủ trong mạng' : !host.online ? 'máy chủ đang ngoại tuyến' : (st.clientError || 'đang kết nối');
     n.push('<div class="notice warn"><div class="grow">Chưa kết nối tới máy chủ: ' + esc(why) + '.</div></div>');
   }
-  $('notices').innerHTML = n.join('');
+  setHTML('notices', n.join(''));
 }
 
 function renderSidebar() {
   const r = st.self.role;
   $('version').textContent = st.version;
-  $('meIcon').innerHTML = osIcon(st.self.os, 16);
+  setHTML('meIcon', osIcon(st.self.os, 16));
   $('meName').textContent = st.self.name;
   const [dot, text] = r === 'host' ? ['host', 'Máy chủ'] : r === 'client' ? (st.self.connected ? ['ok', 'Đã kết nối'] : ['warn', 'Đang kết nối…']) : ['', 'Chưa chia sẻ'];
   $('meDot').className = 'status-dot ' + dot;
@@ -397,17 +422,16 @@ function renderOverview() {
     const n = (st.connectedToMe || []).length;
     icon = ICON.host; title = 'Máy này đang là máy chủ';
     text = n ? `Bàn phím và chuột của máy này đang điều khiển ${n} máy khác. Đẩy chuột qua mép màn hình để chuyển máy.` : 'Đang chờ máy khác kết nối…';
-    action = '<button class="btn" id="heroBtn" data-host="">Dừng chia sẻ</button>';
+    action = '<button class="btn" data-host="">Dừng chia sẻ</button>';
   } else if (r === 'client') {
     icon = st.self.connected ? ICON.client : ICON.wait;
     title = st.self.connected ? `Đang được điều khiển bởi ${esc(host ? host.name : 'máy chủ')}` : 'Đang kết nối tới máy chủ…';
     text = st.self.connected ? 'Bàn phím và chuột của máy chủ dùng được trên máy này khi con trỏ được đẩy sang.' : 'Kiểm tra máy chủ đang bật Crossdesk và cùng mạng LAN.';
-    action = st.hasPassword ? `<button class="btn" id="heroBtn" data-host="${esc(st.self.id)}">Làm máy chủ</button>` : '';
+    action = st.hasPassword ? `<button class="btn" data-host="${esc(st.self.id)}">Làm máy chủ</button>` : '';
   } else if (st.hasPassword) {
-    action = `<button class="btn primary" id="heroBtn" data-host="${esc(st.self.id)}">Làm máy chủ</button>`;
+    action = `<button class="btn primary" data-host="${esc(st.self.id)}">Làm máy chủ</button>`;
   }
-  $('heroIcon').innerHTML = icon; $('heroTitle').innerHTML = title; $('heroText').textContent = text; $('heroAction').innerHTML = action;
-  const hb = $('heroBtn'); if (hb) hb.onclick = () => setHost(hb.dataset.host);
+  setHTML('heroIcon', icon); setHTML('heroTitle', title); $('heroText').textContent = text; setHTML('heroAction', action);
 
   const group = st.devices.filter((d) => d.trusted);
   $('statGroup').textContent = group.length;
@@ -417,8 +441,7 @@ function renderOverview() {
   const steps = setupSteps(), done = steps.filter((s) => s.done).length;
   $('setupCard').hidden = done === steps.length;
   $('setupProgress').textContent = `${done}/${steps.length} bước`;
-  $('steps').innerHTML = steps.map((s, i) => `<li class="${s.done ? 'done' : ''}"><span class="num">${s.done ? '✓' : i + 1}</span><span class="t">${s.t}</span>${s.done ? '' : `<button class="btn" data-go="${s.go}">Đi tới</button>`}</li>`).join('');
-  document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => go(b.dataset.go));
+  setHTML('steps', steps.map((s, i) => `<li class="${s.done ? 'done' : ''}"><span class="num">${s.done ? '✓' : i + 1}</span><span class="t">${s.t}</span>${s.done ? '' : `<button class="btn" data-go="${s.go}">Đi tới</button>`}</li>`).join(''));
   $('setupDot').hidden = done === steps.length;
 }
 
@@ -434,9 +457,8 @@ function renderDevices() {
         ${canHost ? `<button class="btn" data-host="${esc(d.id)}">Làm máy chủ</button>` : ''}
       </div></div>`;
   }).join('');
-  $('devices').innerHTML = html + (st.devices.length === 1
-    ? '<div class="empty-state">Đang tìm máy khác trong mạng…<br>Mở Crossdesk trên máy kia, đặt cùng mật khẩu nhóm và cho phép qua tường lửa (UDP 24802, TCP 24800).</div>' : '');
-  document.querySelectorAll('#devices [data-host]').forEach((b) => b.onclick = () => setHost(b.dataset.host));
+  setHTML('devices', html + (st.devices.length === 1
+    ? '<div class="empty-state">Đang tìm máy khác trong mạng…<br>Mở Crossdesk trên máy kia, đặt cùng mật khẩu nhóm và cho phép qua tường lửa (UDP 24802, TCP 24800).</div>' : ''));
 }
 
 function tileHTML(d) {
@@ -459,10 +481,10 @@ function renderLayout() {
     const d = placed.find((p) => p.cell.x === x && p.cell.y === y);
     html += `<div class="cell" data-x="${x}" data-y="${y}">${d ? tileHTML(d) : ''}</div>`;
   }
-  g.innerHTML = html;
   const unplaced = st.devices.filter((d) => d.trusted && !d.cell);
-  $('tray').innerHTML = unplaced.length ? unplaced.map(tileHTML).join('') : '<span class="empty">Khay: kéo thiết bị vào đây để bỏ khỏi sơ đồ</span>';
-  document.querySelectorAll('.tile').forEach((t) => t.addEventListener('pointerdown', startDrag));
+  const a = setHTML(g, html);
+  const b = setHTML('tray', unplaced.length ? unplaced.map(tileHTML).join('') : '<span class="empty">Khay: kéo thiết bị vào đây để bỏ khỏi sơ đồ</span>');
+  if (a || b) document.querySelectorAll('.tile').forEach((t) => { t.onpointerdown = startDrag; });
 }
 
 function dropTargetAt(x, y) {
@@ -489,7 +511,7 @@ function startDrag(e) {
     window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
     const target = dropTargetAt(ev.clientX, ev.clientY), id = dragging.id;
     ghost.remove(); dragging = null;
-    if (target) applyDrop(id, target); else renderLayout();
+    if (target) applyDrop(id, target); else { $('grid').__html = null; renderLayout(); }
   };
   move(e);
   window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
@@ -509,6 +531,7 @@ function applyDrop(id, target) {
     layout[id] = to;
   }
   st.devices.forEach((d) => { d.cell = layout[d.id] || null; });
+  $('grid').__html = null; $('tray').__html = null;
   renderLayout();
   api('layout', { Layout: layout }).then(refresh).catch((e) => { toast(e.message); refresh(); });
 }
@@ -532,10 +555,48 @@ function renderSettings() {
     $('permTitle').textContent = '/dev/uinput và nhóm input';
     $('permText').textContent = 'Chạy một lần: sudo crossdesk-setup (hoặc install.sh trong gói tải về), rồi đăng xuất và đăng nhập lại.';
   }
-  $('permBadge').innerHTML = st.permissionOK ? '<span class="badge ok">Đã cấp</span>' : '<span class="badge warn">Chưa cấp</span>';
-  $('permAction').innerHTML = !st.permissionOK && os === 'darwin' ? '<button class="btn primary" id="permBtn">Mở cấp quyền</button>' : '';
-  const pb = $('permBtn');
-  if (pb) pb.onclick = () => api('permission', {}).then((r) => toast(r.trusted ? 'Đã có quyền' : 'Hãy bật Crossdesk trong System Settings')).catch((e) => toast(e.message));
+  setHTML('permBadge', st.permissionOK ? '<span class="badge ok">Đã cấp</span>' : '<span class="badge warn">Chưa cấp</span>');
+  setHTML('permAction', !st.permissionOK && os === 'darwin' ? '<button class="btn primary" data-act="perm">Mở cấp quyền</button>' : '');
+}
+
+function fmtTime(t) {
+  if (!t) return '';
+  const d = new Date(t);
+  return isNaN(d) ? '' : d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+let updBusy = false;
+function renderUpdate() {
+  const u = st.update;
+  $('updatePill').hidden = !u || !u.available;
+  if (u && u.available) $('updatePillText').textContent = 'Có bản mới ' + u.latest;
+  $('updateCard').hidden = !u;
+  if (!u || page !== 'settings') return;
+  $('updAuto').checked = !!u.auto;
+  let text, actions = '', progress = '';
+  if (u.state === 'downloading') {
+    text = `Đang tải ${esc(u.latest)}…`;
+    progress = `<div class="bar"><i style="width:${u.progress}%"></i></div>`;
+  } else if (u.state === 'installing') {
+    text = `Đang cài ${esc(u.latest)} — Crossdesk sẽ tự khởi động lại.`;
+  } else if (u.available) {
+    text = `Đang dùng ${esc(u.current)} · có bản mới <b style="display:inline;color:var(--accent)">${esc(u.latest)}</b>`;
+    actions = u.canInstall
+      ? `<button class="btn primary" data-act="upd-install">Cập nhật lên ${esc(u.latest)}</button>`
+      : `<a class="btn" href="${esc(u.url)}" target="_blank" rel="noopener" style="text-decoration:none">Tải thủ công</a>`;
+  } else {
+    text = u.latest ? `Đang dùng ${esc(u.current)} — đã là bản mới nhất` : `Đang dùng ${esc(u.current)}`;
+    if (u.checkedAt && !String(u.checkedAt).startsWith('0001')) text += ` · kiểm tra lúc ${fmtTime(u.checkedAt)}`;
+  }
+  if (u.state === 'error' && u.error) text += `<br><span style="color:var(--bad)">${esc(u.error)}</span>`;
+  if (u.state !== 'downloading' && u.state !== 'installing') {
+    actions = `<button class="btn" data-act="upd-check"${u.state === 'checking' ? ' disabled' : ''}>${u.state === 'checking' ? 'Đang kiểm tra…' : 'Kiểm tra'}</button> ` + actions;
+  }
+  setHTML('updText', text);
+  setHTML('updProgress', progress);
+  setHTML('updActions', actions);
+  $('updNotes').hidden = !(u.available && u.notes);
+  if (u.available && u.notes) $('updNotes').textContent = 'Có gì mới trong ' + u.latest + ':\n\n' + u.notes;
 }
 
 function render() {
@@ -550,14 +611,19 @@ function render() {
     logs.textContent = (st.logs || []).join('\n');
     if (atBottom) logs.scrollTop = logs.scrollHeight;
   }
-  if (page === 'about') $('aboutVersion').textContent = 'Phiên bản ' + st.version;
-  $('headActions').innerHTML = page === 'devices' && st.host ? '<button class="btn" id="stopBtn">Dừng chia sẻ</button>' : '';
-  const sb = $('stopBtn'); if (sb) sb.onclick = () => setHost('');
+  if (page === 'about') $('aboutVersion').textContent = 'Phiên bản ' + st.version + (st.update && st.update.available ? ' · có bản mới ' + st.update.latest : '');
+  renderUpdate();
+  setHTML('headActions', page === 'devices' && st.host ? '<button class="btn" data-host="">Dừng chia sẻ</button>' : '');
 }
 
 async function refresh() {
   try { st = await api('status'); render(); }
-  catch (e) { $('notices').innerHTML = '<div class="notice bad"><div class="grow">Mất kết nối với Crossdesk: ' + esc(e.message) + '</div></div>'; }
+  catch (e) {
+    const restarting = st && st.update && st.update.state === 'installing';
+    $('notices').innerHTML = restarting
+      ? '<div class="notice warn"><div class="grow">Crossdesk đang khởi động lại với phiên bản mới…</div></div>'
+      : '<div class="notice bad"><div class="grow">Mất kết nối với Crossdesk: ' + esc(e.message) + '</div></div>';
+  }
 }
 
 $('pwBtn').onclick = () => api('password', { Password: $('pwInput').value }).then(() => { $('pwInput').value = ''; toast('Đã lưu mật khẩu nhóm'); refresh(); }).catch((e) => toast(e.message));
@@ -570,6 +636,28 @@ $('swapOpt').onchange = saveOptions;
 $('autostartOpt').onchange = (e) => api('autostart', { Enabled: e.target.checked })
   .then(() => { toast(e.target.checked ? 'Crossdesk sẽ tự chạy khi đăng nhập' : 'Đã tắt tự khởi động'); refresh(); })
   .catch((err) => { toast(err.message); refresh(); });
+$('updatePill').onclick = () => go('settings');
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-go],[data-host],[data-act]');
+  if (!b || b.disabled) return;
+  if (b.dataset.go) return go(b.dataset.go);
+  if (b.dataset.host !== undefined) return setHost(b.dataset.host);
+  switch (b.dataset.act) {
+    case 'perm':
+      return api('permission', {}).then((r) => toast(r.trusted ? 'Đã có quyền' : 'Hãy bật Crossdesk trong System Settings')).catch((err) => toast(err.message));
+    case 'upd-check':
+      b.disabled = true;
+      return api('update/check', {}).then(refresh).catch((err) => { toast(err.message); refresh(); });
+    case 'upd-install': {
+      const u = st.update;
+      if (updBusy || !u) return;
+      if (!confirm(`Cập nhật Crossdesk lên ${u.latest}? Ứng dụng sẽ tự khởi động lại.`)) return;
+      updBusy = true;
+      return api('update/install', {}).then(refresh).catch((err) => toast(err.message)).finally(() => { updBusy = false; });
+    }
+  }
+});
+$('updAuto').onchange = (e) => api('update/auto', { Enabled: e.target.checked }).then(refresh).catch((err) => toast(err.message));
 $('speedOpt').oninput = () => { editingOptions = true; $('speedVal').textContent = '×' + Number($('speedOpt').value).toFixed(1); };
 $('speedOpt').onchange = () => { editingOptions = false; saveOptions(); };
 
