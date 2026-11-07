@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -86,7 +87,10 @@ func TestUnzipKeepsModes(t *testing.T) {
 		t.Fatal(err)
 	}
 	st, err := os.Stat(filepath.Join(dest, "Crossdesk.app/Contents/MacOS/crossdesk"))
-	if err != nil || st.Mode().Perm()&0o100 == 0 {
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "windows" && st.Mode().Perm()&0o100 == 0 { // Windows has no exec bit
 		t.Fatalf("binary not executable: %v %v", st, err)
 	}
 }
