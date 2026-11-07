@@ -28,9 +28,9 @@ const install: Record<OS, { title: string; steps: React.ReactNode[] }> = {
     title: "Cài trên macOS",
     steps: [
       <>Giải nén <Code>Crossdesk-macOS-universal.zip</Code> và kéo <b>Crossdesk</b> vào thư mục <b>Applications</b>.</>,
-      <>Lần đầu mở: bấm chuột phải vào ứng dụng → <b>Open</b> → <b>Open</b> (ứng dụng chưa được Apple công chứng). Hoặc chạy:<Block>{"xattr -dr com.apple.quarantine \"/Applications/Crossdesk.app\""}</Block></>,
-      <>Vào <b>System Settings → Privacy &amp; Security → Accessibility</b> (và <b>Input Monitoring</b>), bật <b>Crossdesk</b>, rồi mở lại ứng dụng.</>,
-      <>Bảng điều khiển tự mở trong trình duyệt. Ứng dụng chạy nền, không có biểu tượng trên Dock.</>,
+      <>Mở Crossdesk. Nếu macOS báo <i>"Crossdesk" Not Opened</i>, bấm <b>Done</b> (đừng bấm Move to Trash), vào <b>System Settings → Privacy &amp; Security</b>, kéo xuống mục Security và bấm <b>Open Anyway</b>. Ứng dụng chưa được Apple công chứng nên cần bước này một lần. Hoặc chạy:<Block>{"xattr -dr com.apple.quarantine /Applications/Crossdesk.app"}</Block></>,
+      <>Vào <b>System Settings → Privacy &amp; Security → Accessibility</b> (và <b>Input Monitoring</b>), bật <b>Crossdesk</b>, rồi thoát và mở lại ứng dụng.</>,
+      <>Crossdesk chạy trên thanh menu (biểu tượng ở góc trên bên phải). Bật <b>Cài đặt → Khởi động cùng hệ thống</b> để tự chạy khi đăng nhập.</>,
     ],
   },
   windows: {
@@ -39,7 +39,7 @@ const install: Record<OS, { title: string; steps: React.ReactNode[] }> = {
       <>Chạy <Code>Crossdesk-Windows-x64.exe</Code> (hoặc bản ARM64). Không cần cài đặt.</>,
       <>Nếu SmartScreen cảnh báo: bấm <b>More info</b> → <b>Run anyway</b>.</>,
       <>Khi Windows Firewall hỏi, chọn cho phép trên mạng <b>Private</b> (cổng TCP 24800, UDP 24802).</>,
-      <>Muốn điều khiển cả các cửa sổ chạy quyền Administrator thì chạy Crossdesk bằng <b>Run as administrator</b>.</>,
+      <>Crossdesk chạy ở khay hệ thống (góc dưới bên phải). Muốn điều khiển cả các cửa sổ chạy quyền Administrator thì chạy Crossdesk bằng <b>Run as administrator</b>.</>,
     ],
   },
   linux: {

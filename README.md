@@ -16,13 +16,13 @@ Tải ở trang web của dự án (tự nhận diện hệ điều hành) hoặ
 
 | Hệ điều hành | File | Ghi chú |
 |---|---|---|
-| macOS 11+ (Apple Silicon & Intel) | `Crossdesk-macOS-universal.zip` | Kéo vào Applications. Lần đầu: chuột phải → Open. Cấp quyền **Accessibility** (+ Input Monitoring). |
+| macOS 11+ (Apple Silicon & Intel) | `Crossdesk-macOS-universal.zip` | Kéo vào Applications. Lần đầu bị chặn: System Settings → Privacy & Security → **Open Anyway** (hoặc `xattr -dr com.apple.quarantine /Applications/Crossdesk.app`). Cấp quyền **Accessibility** (+ Input Monitoring). |
 | Windows 10/11 x64 / ARM64 | `Crossdesk-Windows-x64.exe` / `-arm64.exe` | Chạy trực tiếp. Cho phép qua Firewall (mạng Private). |
 | Linux x64 / ARM64 (X11 & Wayland) | `Crossdesk-Linux-x64.tar.gz` / `-arm64` | `sudo ./install.sh`, rồi đăng xuất/đăng nhập lại (cấp quyền `/dev/uinput` + nhóm `input`). |
 
 ## Sử dụng
 
-1. Mở Crossdesk trên mọi máy — bảng điều khiển tự mở trong trình duyệt (`http://127.0.0.1:24801`).
+1. Mở Crossdesk trên mọi máy. App chạy trên thanh menu (macOS) hoặc khay hệ thống (Windows) và mở cửa sổ bảng điều khiển; Linux mở trong trình duyệt. Bật **Cài đặt → Khởi động cùng hệ thống** để tự chạy khi đăng nhập.
 2. Đặt **cùng một mật khẩu nhóm** trên các máy.
 3. Bấm **Làm máy chủ** ở máy có bàn phím/chuột bạn muốn dùng. Các máy khác tự thành máy khách.
 4. Kéo thả các màn hình trong lưới cho giống vị trí thật. Đẩy chuột qua mép để chuyển máy.
@@ -42,7 +42,9 @@ Cổng mạng: TCP **24800** (input, mã hoá), UDP **24802** (tìm máy), `127.
 
 | Thư mục | Vai trò |
 |---|---|
-| `cmd/crossdesk` | Ứng dụng: khởi động agent + web UI, mở trình duyệt, một phiên bản duy nhất |
+| `cmd/crossdesk` | Ứng dụng: khởi động agent + bảng điều khiển, một phiên bản duy nhất |
+| `internal/ui` | Vỏ ứng dụng: thanh menu + cửa sổ WKWebView (macOS), khay hệ thống + WebView2 (Windows), trình duyệt (Linux) |
+| `internal/autostart` | Khởi động cùng hệ thống: LaunchAgent, khoá Run, XDG autostart |
 | `internal/agent` | Tìm máy, đồng bộ cấu hình nhóm (máy chủ, sơ đồ), tự chuyển vai trò |
 | `internal/server` | Định tuyến con trỏ qua lưới màn hình, nhiều máy khách |
 | `internal/client` | Nhận input, giả lập, tự kết nối lại |

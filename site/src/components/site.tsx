@@ -7,7 +7,7 @@ import { BASE, REPO_URL, latestDownloadUrl, OS_NAME } from "@/lib/config"
 import { recommendedAsset, usePlatform } from "@/lib/platform"
 import { cn } from "@/lib/utils"
 
-/** Crossdesk mark: two screens as friendly eyes, the smile ends in a cursor. */
+/** Crossdesk mark: two overlapping screens, the cursor crossing between them. */
 export function Logo({ className }: { className?: string }) {
   const id = useId()
   return (
@@ -18,11 +18,11 @@ export function Logo({ className }: { className?: string }) {
           <stop offset="1" stopColor="#A855F7" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="16" fill={`url(#${id})`} />
-      <rect x="10" y="15" width="18" height="14" rx="4.5" fill="#fff" />
-      <rect x="36" y="15" width="18" height="14" rx="4.5" fill="#fff" />
-      <path d="M16 38 Q28 50 39 44" fill="none" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" />
-      <path d="M42 35.5 L42.6 51 L46.4 47.4 L49.4 53.2 L52.2 51.8 L49.3 46.2 L54.6 45.6 Z" fill="#fff" stroke="#fff" strokeWidth="2.2" strokeLinejoin="round" />
+      <rect width="64" height="64" rx="15" fill={`url(#${id})`} />
+      <rect x="10" y="13" width="29" height="21" rx="5.5" fill="#fff" fillOpacity=".42" />
+      <rect x="24" y="27" width="30" height="22" rx="5.5" fill="#fff" />
+      <path d="M0 0 L0 15 L4.1 11.4 L6.7 17.3 L9.4 16.1 L6.9 10.5 L11.6 10.2 Z" transform="translate(29.5 31) scale(1.05)"
+        fill="#5B54F0" stroke="#5B54F0" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   )
 }

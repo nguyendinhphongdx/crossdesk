@@ -4,138 +4,275 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Crossdesk</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E %3Cdefs%3E %3ClinearGradient id=%22crossdesk-bg%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E %3Cstop offset=%220%22 stop-color=%22%236366F1%22/%3E %3Cstop offset=%221%22 stop-color=%22%23A855F7%22/%3E %3C/linearGradient%3E %3C/defs%3E %3Crect width=%2264%22 height=%2264%22 rx=%2216%22 fill=%22url(%23crossdesk-bg)%22/%3E %3Crect x=%2210%22 y=%2215%22 width=%2218%22 height=%2214%22 rx=%224.5%22 fill=%22%23fff%22/%3E %3Crect x=%2236%22 y=%2215%22 width=%2218%22 height=%2214%22 rx=%224.5%22 fill=%22%23fff%22/%3E %3Cpath d=%22M16 38 Q28 50 39 44%22 fill=%22none%22 stroke=%22%23fff%22 stroke-width=%224.5%22 stroke-linecap=%22round%22/%3E %3Cpath d=%22M42 35.5 L42.6 51 L46.4 47.4 L49.4 53.2 L52.2 51.8 L49.3 46.2 L54.6 45.6 Z%22 fill=%22%23fff%22 stroke=%22%23fff%22 stroke-width=%222.2%22 stroke-linejoin=%22round%22/%3E %3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E %3Cdefs%3E %3ClinearGradient id=%22crossdesk-bg%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E %3Cstop offset=%220%22 stop-color=%22%236366F1%22/%3E %3Cstop offset=%221%22 stop-color=%22%23A855F7%22/%3E %3C/linearGradient%3E %3C/defs%3E %3Crect width=%2264%22 height=%2264%22 rx=%2215%22 fill=%22url(%23crossdesk-bg)%22/%3E %3Crect x=%2210%22 y=%2213%22 width=%2229%22 height=%2221%22 rx=%225.5%22 fill=%22%23fff%22 fill-opacity=%22.42%22/%3E %3Crect x=%2224%22 y=%2227%22 width=%2230%22 height=%2222%22 rx=%225.5%22 fill=%22%23fff%22/%3E %3Cpath d=%22M0 0 L0 15 L4.1 11.4 L6.7 17.3 L9.4 16.1 L6.9 10.5 L11.6 10.2 Z%22 transform=%22translate(29.5 31) scale(1.05)%22 fill=%22%235B54F0%22 stroke=%22%235B54F0%22 stroke-width=%221.6%22 stroke-linejoin=%22round%22/%3E %3C/svg%3E">
 <style>
 :root {
-  --bg: #f4f5f7; --panel: #ffffff; --text: #1b1d22; --muted: #6b7280; --line: #e3e5ea;
-  --accent: #2563eb; --accent-soft: #e6eefe; --ok: #15803d; --ok-soft: #e3f4e8;
+  --bg: #f6f7f9; --side: #eef0f4; --panel: #ffffff; --text: #16181d; --muted: #6b7280; --line: #e3e5ea;
+  --accent: #5b54f0; --accent-soft: #ecebfd; --ok: #15803d; --ok-soft: #e3f4e8;
   --warn: #b45309; --warn-soft: #fdf1df; --bad: #b91c1c; --bad-soft: #fde8e8;
-  --cell: #eef0f4; --cell-hot: #dbe6fd; --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+  --cell: #eef0f4; --cell-hot: #e2e0fd; --hover: rgba(0,0,0,.045);
+  --shadow: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #111317; --panel: #1a1d23; --text: #e8eaee; --muted: #9aa1ad; --line: #2b2f37;
-    --accent: #6d9cff; --accent-soft: #1f2a44; --ok: #4ade80; --ok-soft: #173023;
-    --warn: #fbbf24; --warn-soft: #362a12; --bad: #f87171; --bad-soft: #3a1b1b;
-    --cell: #20242b; --cell-hot: #26355a; --shadow: none;
+    --bg: #111317; --side: #0c0d10; --panel: #181a1f; --text: #e8eaee; --muted: #9aa1ad; --line: #272a31;
+    --accent: #8b85ff; --accent-soft: #24223f; --ok: #4ade80; --ok-soft: #14291c;
+    --warn: #fbbf24; --warn-soft: #2f2410; --bad: #f87171; --bad-soft: #341a1a;
+    --cell: #1f2228; --cell-hot: #2a2752; --hover: rgba(255,255,255,.05); --shadow: none;
   }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--text);
-  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-main { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; }
-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
-header h1 { font-size: 18px; margin: 0; letter-spacing: -.01em; }
-header .spacer { flex: 1; }
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: var(--shadow); }
-.panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
-.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden;
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased; user-select: none; }
+input, textarea, pre { user-select: text; }
+.app { display: grid; grid-template-columns: 236px 1fr; height: 100vh; }
+
+/* ---------- sidebar ---------- */
+.side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 18px 12px 12px; min-height: 0; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; font-weight: 650; font-size: 15px; letter-spacing: -.01em; }
+.brand small { display: block; font-weight: 450; font-size: 11px; color: var(--muted); letter-spacing: 0; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav button { all: unset; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--muted); cursor: default; font-size: 13.5px; font-weight: 500; }
+.nav button svg { width: 17px; height: 17px; flex: none; }
+.nav button:hover { background: var(--hover); color: var(--text); }
+.nav button.active { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.nav button.active svg { color: var(--accent); }
+.nav .dot { margin-left: auto; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); }
+.side .spacer { flex: 1; }
+.me { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.me .ico { width: 30px; height: 30px; border-radius: 8px; background: var(--cell); display: grid; place-items: center; flex: none; }
+.me .t { min-width: 0; flex: 1; }
+.me .n { font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.me .s { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex: none; }
+.status-dot.ok { background: var(--ok); } .status-dot.host { background: var(--accent); } .status-dot.warn { background: var(--warn); }
+
+/* ---------- main ---------- */
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.head { padding: 22px 32px 16px; display: flex; align-items: flex-end; gap: 16px; }
+.head h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -.02em; }
+.head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.head .actions { margin-left: auto; display: flex; gap: 8px; }
+.content { flex: 1; overflow: auto; padding: 4px 32px 32px; }
+.page { display: none; max-width: 980px; }
+.page.active { display: block; }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 16px; }
+.card > .ch { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+.card > .ch h2 { margin: 0; font-size: 13.5px; font-weight: 600; }
+.card > .ch p { margin: 0; font-size: 12.5px; color: var(--muted); }
+.card > .cb { padding: 16px 18px; }
+.row { display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line); }
+.row:first-of-type { border-top: 0; }
+.row .lbl { flex: 1; min-width: 0; }
+.row .lbl b { display: block; font-weight: 550; font-size: 13.5px; }
+.row .lbl span { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.muted { color: var(--muted); }
+
 input[type=text], input[type=password] { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
-  border-radius: 8px; padding: 7px 10px; min-width: 0; }
-button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 8px;
-  padding: 6px 12px; cursor: pointer; white-space: nowrap; }
-button:hover { border-color: var(--accent); }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-button.danger { color: var(--bad); }
-button:disabled { opacity: .5; cursor: default; }
-.badge { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 99px; background: var(--cell); color: var(--muted); }
-.badge.host { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  border-radius: 8px; padding: 7px 10px; width: 240px; outline: none; }
+input[type=text]:focus, input[type=password]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+button.btn { font: inherit; font-size: 13px; font-weight: 550; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+  border-radius: 8px; padding: 7px 13px; cursor: default; white-space: nowrap; }
+button.btn:hover { background: var(--hover); }
+button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.btn.primary:hover { filter: brightness(1.06); }
+button.btn.danger { color: var(--bad); }
+button.btn:disabled { opacity: .45; }
+
+/* switch */
+.switch { position: relative; width: 38px; height: 22px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch span { position: absolute; inset: 0; background: var(--line); border-radius: 99px; transition: .15s; }
+.switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: .15s; }
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::after { transform: translateX(16px); }
+input[type=range] { accent-color: var(--accent); width: 180px; }
+
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 550; padding: 2px 8px; border-radius: 99px; background: var(--cell); color: var(--muted); }
+.badge.host { background: var(--accent-soft); color: var(--accent); }
 .badge.ok { background: var(--ok-soft); color: var(--ok); }
 .badge.warn { background: var(--warn-soft); color: var(--warn); }
 .badge.bad { background: var(--bad-soft); color: var(--bad); }
-.notice { border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+
+.notice { border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; display: flex; gap: 12px; align-items: flex-start; font-size: 13px; }
 .notice.warn { background: var(--warn-soft); color: var(--warn); }
 .notice.bad { background: var(--bad-soft); color: var(--bad); }
-.muted { color: var(--muted); }
-.devices { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
-.dev { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: flex; gap: 12px; align-items: flex-start; }
+.notice .grow { flex: 1; }
+.notice code { font-size: 12px; }
+
+/* overview */
+.hero { display: flex; align-items: center; gap: 18px; padding: 22px; }
+.hero .big { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: none; }
+.hero .big svg { width: 26px; height: 26px; }
+.hero h3 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.hero p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+.hero .grow { flex: 1; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+.stat .k { font-size: 12px; color: var(--muted); }
+.stat .v { font-size: 20px; font-weight: 650; margin-top: 2px; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.steps { list-style: none; margin: 0; padding: 0; }
+.steps li { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--line); }
+.steps li:first-child { border-top: 0; }
+.steps .num { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--muted); flex: none; }
+.steps li.done .num { background: var(--ok); border-color: var(--ok); color: #fff; }
+.steps li.done .t { color: var(--muted); text-decoration: line-through; }
+.steps .t { flex: 1; font-weight: 500; }
+
+/* devices */
+.devs { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.dev { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; gap: 12px; box-shadow: var(--shadow); }
 .dev.offline { opacity: .55; }
-.dev .icon { width: 38px; height: 38px; border-radius: 9px; background: var(--cell); display: grid; place-items: center; flex: none; }
+.dev .icon { width: 40px; height: 40px; border-radius: 10px; background: var(--cell); display: grid; place-items: center; flex: none; }
 .dev .info { flex: 1; min-width: 0; }
-.dev .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dev .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dev .meta { font-size: 12px; color: var(--muted); }
-.dev .tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0 8px; }
-.grid-wrap { overflow-x: auto; padding-bottom: 4px; }
-.grid { display: grid; gap: 8px; width: max-content; margin: 0 auto; }
-.cell { width: 128px; height: 84px; border-radius: 10px; background: var(--cell); border: 2px dashed transparent;
-  display: grid; place-items: center; transition: background .1s; }
-.cell.hot { background: var(--cell-hot); border-color: var(--accent); }
-.tile { width: 116px; height: 74px; border-radius: 8px; background: var(--panel); border: 2px solid var(--line);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: grab;
-  user-select: none; touch-action: none; font-size: 12px; text-align: center; padding: 4px; box-shadow: var(--shadow); }
+.dev .tags { display: flex; gap: 4px; flex-wrap: wrap; margin: 7px 0 9px; }
+.empty-state { border: 1.5px dashed var(--line); border-radius: 12px; padding: 22px; color: var(--muted); font-size: 13px; text-align: center; }
+
+/* layout editor */
+.grid-wrap { overflow: auto; padding: 18px; background: var(--bg); border-radius: 10px;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 24px 24px; }
+.grid { display: grid; gap: 10px; width: max-content; margin: 0 auto; }
+.cell { width: 138px; height: 92px; border-radius: 10px; background: var(--cell); border: 2px dashed transparent; display: grid; place-items: center; opacity: .85; }
+.cell.hot { background: var(--cell-hot); border-color: var(--accent); opacity: 1; }
+.tile { width: 126px; height: 80px; border-radius: 8px; background: var(--panel); border: 2px solid var(--line); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px; cursor: grab; touch-action: none; font-size: 12px; text-align: center; padding: 4px; box-shadow: var(--shadow); }
 .tile.host { border-color: var(--accent); }
 .tile.offline { opacity: .5; }
 .tile .tname { font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tile.ghost { position: fixed; pointer-events: none; z-index: 10; opacity: .9; cursor: grabbing; transform: rotate(-2deg); }
+.tile.ghost { position: fixed; pointer-events: none; z-index: 10; opacity: .92; cursor: grabbing; transform: rotate(-2deg); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
 .tile.dragging { opacity: .25; }
-.tray { margin-top: 12px; min-height: 92px; border-radius: 10px; border: 2px dashed var(--line); padding: 8px;
-  display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.tray { margin-top: 12px; min-height: 96px; border-radius: 10px; border: 2px dashed var(--line); padding: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .tray.hot { border-color: var(--accent); background: var(--cell-hot); }
-.tray .empty { color: var(--muted); font-size: 13px; padding: 0 8px; }
-.hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
-details summary { cursor: pointer; color: var(--muted); }
-pre.logs { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--bg); border-radius: 8px;
-  padding: 10px; max-height: 260px; overflow: auto; white-space: pre-wrap; margin: 10px 0 0; }
-.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--text); color: var(--bg);
-  padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; max-width: calc(100% - 32px); }
+.tray .empty { color: var(--muted); font-size: 12.5px; padding: 0 8px; }
+
+pre.logs { margin: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 14px 16px; height: calc(100vh - 170px);
+  overflow: auto; white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.about { text-align: center; padding: 40px 20px; }
+.about h3 { margin: 14px 0 2px; font-size: 22px; letter-spacing: -.02em; }
+.about a { color: var(--accent); text-decoration: none; font-weight: 550; }
+.toast { position: fixed; left: calc(50% + 118px); bottom: 22px; transform: translateX(-50%); background: var(--text); color: var(--bg);
+  padding: 9px 15px; border-radius: 9px; opacity: 0; transition: opacity .2s; pointer-events: none; font-size: 13px; }
 .toast.show { opacity: 1; }
-label.opt { display: flex; gap: 8px; align-items: center; }
-@media (max-width: 560px) { .cell { width: 96px; height: 66px; } .tile { width: 86px; height: 56px; font-size: 11px; } }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 64px 1fr; }
+  .brand span, .nav button span, .me .t, .nav .dot { display: none; }
+  .brand { justify-content: center; padding: 4px 0 18px; } .nav button { justify-content: center; } .me { justify-content: center; padding: 8px; }
+  .toast { left: calc(50% + 32px); } .stats { grid-template-columns: 1fr; } .head, .content { padding-left: 20px; padding-right: 20px; }
+}
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden="true"> <defs> <linearGradient id="crossdesk-bg" x1="0" y1="0" x2="1" y2="1"> <stop offset="0" stop-color="#6366F1"/> <stop offset="1" stop-color="#A855F7"/> </linearGradient> </defs> <rect width="64" height="64" rx="16" fill="url(#crossdesk-bg)"/> <rect x="10" y="15" width="18" height="14" rx="4.5" fill="#fff"/> <rect x="36" y="15" width="18" height="14" rx="4.5" fill="#fff"/> <path d="M16 38 Q28 50 39 44" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/> <path d="M42 35.5 L42.6 51 L46.4 47.4 L49.4 53.2 L52.2 51.8 L49.3 46.2 L54.6 45.6 Z" fill="#fff" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/> </svg>
-    <h1>Crossdesk</h1>
-    <span id="selfRole" class="badge"></span>
-    <span id="version" class="muted" style="font-size:12px"></span>
-    <span class="spacer"></span>
-    <button id="quitBtn" class="danger" title="Tắt ứng dụng trên máy này">Thoát</button>
-  </header>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><svg width="30" height="30" viewBox="0 0 64 64" aria-hidden="true"> <defs> <linearGradient id="cd-a" x1="0" y1="0" x2="1" y2="1"> <stop offset="0" stop-color="#6366F1"/> <stop offset="1" stop-color="#A855F7"/> </linearGradient> </defs> <rect width="64" height="64" rx="15" fill="url(#cd-a)"/> <rect x="10" y="13" width="29" height="21" rx="5.5" fill="#fff" fill-opacity=".42"/> <rect x="24" y="27" width="30" height="22" rx="5.5" fill="#fff"/> <path d="M0 0 L0 15 L4.1 11.4 L6.7 17.3 L9.4 16.1 L6.9 10.5 L11.6 10.2 Z" transform="translate(29.5 31) scale(1.05)" fill="#5B54F0" stroke="#5B54F0" stroke-width="1.6" stroke-linejoin="round"/> </svg><span>Crossdesk<small id="version"></small></span></div>
+    <nav class="nav" id="nav">
+      <button data-page="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg><span>Tổng quan</span><i class="dot" id="setupDot" hidden></i></button>
+      <button data-page="devices"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="14" height="10" rx="2"/><path d="M6 18h6M9 14v4"/><rect x="18" y="8" width="4" height="12" rx="1"/></svg><span>Thiết bị</span></button>
+      <button data-page="layout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M3 17.5h7M6.5 14v7"/></svg><span>Bố cục màn hình</span></button>
+      <button data-page="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg><span>Cài đặt</span></button>
+      <button data-page="logs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg><span>Nhật ký</span></button>
+      <button data-page="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>Giới thiệu</span></button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="me"><div class="ico" id="meIcon"></div><div class="t"><div class="n" id="meName"></div><div class="s"><i class="status-dot" id="meDot"></i><span id="meStatus"></span></div></div></div>
+  </aside>
 
-  <div id="notices"></div>
+  <div class="main">
+    <header class="head">
+      <div><h1 id="pageTitle"></h1><p id="pageSub"></p></div>
+      <div class="actions" id="headActions"></div>
+    </header>
+    <div class="content">
+      <div id="notices"></div>
 
-  <section class="panel" id="setupPanel">
-    <h2>Máy này</h2>
-    <div class="row" style="margin-bottom:10px">
-      <span class="muted" style="width:110px">Tên thiết bị</span>
-      <input type="text" id="nameInput" maxlength="40" style="flex:1;max-width:280px">
-      <button id="nameBtn">Lưu</button>
+      <!-- Overview -->
+      <section class="page" data-page="overview">
+        <div class="card"><div class="hero">
+          <div class="big" id="heroIcon"></div>
+          <div class="grow"><h3 id="heroTitle"></h3><p id="heroText"></p></div>
+          <div id="heroAction"></div>
+        </div></div>
+        <div class="stats">
+          <div class="stat"><div class="k">Thiết bị cùng nhóm</div><div class="v" id="statGroup">–</div></div>
+          <div class="stat"><div class="k">Đang trực tuyến</div><div class="v" id="statOnline">–</div></div>
+          <div class="stat"><div class="k">Máy chủ hiện tại</div><div class="v" id="statHost">–</div></div>
+        </div>
+        <div class="card" id="setupCard">
+          <div class="ch"><h2>Thiết lập</h2><p id="setupProgress"></p></div>
+          <ul class="steps" id="steps"></ul>
+        </div>
+      </section>
+
+      <!-- Devices -->
+      <section class="page" data-page="devices">
+        <div class="devs" id="devices"></div>
+      </section>
+
+      <!-- Layout -->
+      <section class="page" data-page="layout">
+        <div class="card"><div class="cb">
+          <div class="grid-wrap"><div class="grid" id="grid"></div></div>
+          <div class="tray" id="tray"></div>
+        </div></div>
+      </section>
+
+      <!-- Settings -->
+      <section class="page" data-page="settings">
+        <div class="card">
+          <div class="ch"><h2>Chung</h2></div>
+          <div class="row"><div class="lbl"><b>Tên thiết bị</b><span>Tên hiển thị trên các máy khác trong nhóm.</span></div>
+            <input type="text" id="nameInput" maxlength="40"><button class="btn" id="nameBtn">Lưu</button></div>
+          <div class="row"><div class="lbl"><b>Khởi động cùng hệ thống</b><span>Tự chạy nền khi đăng nhập, chỉ hiện biểu tượng trên thanh menu / khay hệ thống.</span></div>
+            <label class="switch"><input type="checkbox" id="autostartOpt"><span></span></label></div>
+        </div>
+        <div class="card">
+          <div class="ch"><h2>Nhóm &amp; bảo mật</h2></div>
+          <div class="row"><div class="lbl"><b>Mật khẩu nhóm</b><span>Các máy dùng cùng mật khẩu sẽ tự nhận ra nhau. Mật khẩu cũng dùng để mã hoá mọi phím bấm gửi qua mạng (AES-256-GCM).</span></div>
+            <input type="password" id="pwInput" placeholder="Giống nhau trên mọi máy" autocomplete="new-password"><button class="btn" id="pwBtn">Đặt</button></div>
+        </div>
+        <div class="card">
+          <div class="ch"><h2>Bàn phím &amp; chuột</h2></div>
+          <div class="row"><div class="lbl"><b>Đổi Cmd ⇄ Ctrl giữa Mac và Windows/Linux</b><span>Cmd+C trên Mac thành Ctrl+C trên Windows, và ngược lại.</span></div>
+            <label class="switch"><input type="checkbox" id="swapOpt"><span></span></label></div>
+          <div class="row"><div class="lbl"><b>Tốc độ con trỏ trên máy khác</b><span>Điều chỉnh nếu chuột chạy quá nhanh hoặc quá chậm khi sang máy khác.</span></div>
+            <input type="range" id="speedOpt" min="0.5" max="3" step="0.1"><span id="speedVal" class="muted" style="width:38px;text-align:right"></span></div>
+        </div>
+        <div class="card" id="permCard">
+          <div class="ch"><h2>Quyền hệ thống</h2></div>
+          <div class="row"><div class="lbl"><b id="permTitle"></b><span id="permText"></span></div><span id="permBadge"></span><span id="permAction"></span></div>
+        </div>
+        <div class="card">
+          <div class="ch"><h2>Ứng dụng</h2></div>
+          <div class="row"><div class="lbl"><b>Thoát Crossdesk</b><span>Dừng chia sẻ và tắt ứng dụng trên máy này.</span></div>
+            <button class="btn danger" id="quitBtn">Thoát</button></div>
+        </div>
+      </section>
+
+      <!-- Logs -->
+      <section class="page" data-page="logs"><pre class="logs" id="logs"></pre></section>
+
+      <!-- About -->
+      <section class="page" data-page="about">
+        <div class="card"><div class="about">
+          <svg width="76" height="76" viewBox="0 0 64 64" aria-hidden="true"> <defs> <linearGradient id="cd-b" x1="0" y1="0" x2="1" y2="1"> <stop offset="0" stop-color="#6366F1"/> <stop offset="1" stop-color="#A855F7"/> </linearGradient> </defs> <rect width="64" height="64" rx="15" fill="url(#cd-b)"/> <rect x="10" y="13" width="29" height="21" rx="5.5" fill="#fff" fill-opacity=".42"/> <rect x="24" y="27" width="30" height="22" rx="5.5" fill="#fff"/> <path d="M0 0 L0 15 L4.1 11.4 L6.7 17.3 L9.4 16.1 L6.9 10.5 L11.6 10.2 Z" transform="translate(29.5 31) scale(1.05)" fill="#5B54F0" stroke="#5B54F0" stroke-width="1.6" stroke-linejoin="round"/> </svg>
+          <h3>Crossdesk</h3>
+          <div class="muted" id="aboutVersion"></div>
+          <p class="muted" style="max-width:440px;margin:14px auto 18px">Một bàn phím, một con chuột cho mọi máy tính trên bàn làm việc của bạn — macOS, Windows và Linux. Mã hoá toàn bộ, hoạt động hoàn toàn trong mạng LAN.</p>
+          <a href="https://nguyendinhphongdx.github.io/crossdesk/" target="_blank" rel="noopener">Trang chủ</a>
+          <span class="muted"> · </span>
+          <a href="https://github.com/nguyendinhphongdx/crossdesk" target="_blank" rel="noopener">GitHub</a>
+          <span class="muted"> · </span>
+          <a href="https://github.com/nguyendinhphongdx/crossdesk/issues" target="_blank" rel="noopener">Báo lỗi</a>
+        </div></div>
+      </section>
     </div>
-    <div class="row">
-      <span class="muted" style="width:110px">Mật khẩu nhóm</span>
-      <input type="password" id="pwInput" placeholder="Giống nhau trên mọi máy" style="flex:1;max-width:280px" autocomplete="new-password">
-      <button id="pwBtn" class="primary">Đặt mật khẩu</button>
-    </div>
-    <div class="hint" id="pwHint">Các máy dùng cùng mật khẩu sẽ tự nhận ra nhau. Mật khẩu cũng dùng để mã hoá phím bấm gửi qua mạng.</div>
-  </section>
-
-  <section class="panel">
-    <div class="row" style="justify-content:space-between;margin-bottom:12px">
-      <h2 style="margin:0">Thiết bị trong mạng</h2>
-      <button id="stopBtn">Dừng chia sẻ</button>
-    </div>
-    <div class="devices" id="devices"></div>
-    <div class="hint">Đang tự quét mạng LAN. Chọn <b>Làm máy chủ</b> cho máy có bàn phím và chuột bạn muốn dùng, các máy còn lại tự động thành máy khách.</div>
-  </section>
-
-  <section class="panel">
-    <h2>Sắp xếp màn hình</h2>
-    <div class="grid-wrap"><div class="grid" id="grid"></div></div>
-    <div class="tray" id="tray"></div>
-    <div class="hint">Kéo thả các màn hình cho giống vị trí thật trên bàn. Đẩy chuột qua cạnh màn hình để sang máy nằm cạnh. Kéo xuống khay bên dưới để bỏ ra.</div>
-  </section>
-
-  <section class="panel">
-    <h2>Tuỳ chọn</h2>
-    <label class="opt" style="margin-bottom:10px"><input type="checkbox" id="swapOpt">
-      Đổi Cmd ⇄ Ctrl khi điều khiển giữa Mac và Windows (Cmd+C trên Mac = Ctrl+C trên Windows và ngược lại)</label>
-    <div class="row"><span class="muted">Tốc độ chuột trên máy khách</span>
-      <input type="range" id="speedOpt" min="0.5" max="3" step="0.1" style="width:180px"><span id="speedVal"></span></div>
-    <details style="margin-top:14px"><summary>Nhật ký</summary><pre class="logs" id="logs"></pre></details>
-  </section>
-</main>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -149,6 +286,29 @@ const token = (() => {
 
 const $ = (id) => document.getElementById(id);
 let st = null, dragging = null, editingOptions = false;
+
+const PAGES = {
+  overview: ['Tổng quan', 'Trạng thái chia sẻ bàn phím và chuột của máy này.'],
+  devices: ['Thiết bị', 'Các máy chạy Crossdesk trong mạng LAN.'],
+  layout: ['Bố cục màn hình', 'Kéo thả cho giống vị trí thật trên bàn. Đẩy chuột qua mép để sang máy bên cạnh.'],
+  settings: ['Cài đặt', 'Tuỳ chỉnh Crossdesk trên máy này.'],
+  logs: ['Nhật ký', 'Hoạt động gần đây — gửi kèm khi báo lỗi.'],
+  about: ['Giới thiệu', ''],
+};
+let page = 'overview';
+try { page = localStorage.getItem('cdPage') || 'overview'; } catch (e) {}
+if (!PAGES[page]) page = 'overview';
+
+function go(p) {
+  page = p;
+  try { localStorage.setItem('cdPage', p); } catch (e) {}
+  document.querySelectorAll('.nav button').forEach((b) => b.classList.toggle('active', b.dataset.page === p));
+  document.querySelectorAll('.page').forEach((s) => s.classList.toggle('active', s.dataset.page === p));
+  $('pageTitle').textContent = PAGES[p][0];
+  $('pageSub').textContent = PAGES[p][1];
+  if (st) render();
+}
+document.querySelectorAll('.nav button').forEach((b) => b.onclick = () => go(b.dataset.page));
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -166,11 +326,18 @@ async function api(path, body) {
   return j;
 }
 
-const osIcon = (os) => os === 'darwin'
-  ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-label="macOS"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.9-.9-3.1-.8C6.8 7.3 5.3 8.2 4.5 9.6c-1.7 2.9-.4 7.2 1.2 9.6.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8s1.9.8 3.1.8c1.3 0 2.1-1.2 2.9-2.4.9-1.3 1.3-2.6 1.3-2.7 0 0-2.6-1-2.7-3.9zM14.1 5.5c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4z"/></svg>'
+const osIcon = (os, s = 18) => os === 'darwin'
+  ? `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="currentColor" aria-label="macOS"><path d="M16.4 12.6c0-2.4 2-3.5 2-3.6-1.1-1.6-2.8-1.8-3.4-1.8-1.4-.1-2.8.9-3.5.9s-1.9-.9-3.1-.8C6.8 7.3 5.3 8.2 4.5 9.6c-1.7 2.9-.4 7.2 1.2 9.6.8 1.2 1.8 2.5 3 2.4 1.2 0 1.7-.8 3.1-.8s1.9.8 3.1.8c1.3 0 2.1-1.2 2.9-2.4.9-1.3 1.3-2.6 1.3-2.7 0 0-2.6-1-2.7-3.9zM14.1 5.5c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4z"/></svg>`
   : os === 'windows'
-  ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-label="Windows"><path d="M3 5.1 10.4 4v7.1H3V5.1zm0 13.8 7.4 1.1v-7H3v5.9zm8.2 1.2L21 21.5V13h-9.8v7.1zm0-16.2V11H21V2.5l-9.8 1.4z"/></svg>'
-  : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>';
+  ? `<svg width="${s - 2}" height="${s - 2}" viewBox="0 0 24 24" fill="currentColor" aria-label="Windows"><path d="M3 5.1 10.4 4v7.1H3V5.1zm0 13.8 7.4 1.1v-7H3v5.9zm8.2 1.2L21 21.5V13h-9.8v7.1zm0-16.2V11H21V2.5l-9.8 1.4z"/></svg>`
+  : `<svg width="${s - 2}" height="${s - 2}" viewBox="0 0 24 24" fill="currentColor" aria-label="Linux"><path d="M12 2c-2.2 0-3.6 1.9-3.6 4.6 0 1.4-.4 2.3-1.3 3.6C5.9 11.8 5 13.6 5 15.6c0 .6.1 1.2.3 1.7-.7.4-1.3 1-1.3 1.8 0 1.3 1.4 1.6 2.8 2.1 1.2.5 2.2 1 3 .8.5-.1.9-.5 1-1 .4 0 .8.1 1.2.1s.8 0 1.2-.1c.1.5.5.9 1 1 .8.2 1.8-.3 3-.8 1.4-.5 2.8-.8 2.8-2.1 0-.8-.6-1.4-1.3-1.8.2-.5.3-1.1.3-1.7 0-2-.9-3.8-2.1-5.4-.9-1.3-1.3-2.2-1.3-3.6C15.6 3.9 14.2 2 12 2z"/></svg>`;
+
+const ICON = {
+  host: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="m10 8 3 2-3 2"/></svg>',
+  client: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10"/></svg>',
+  idle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg>',
+  wait: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>',
+};
 
 const osName = (os) => ({ darwin: 'macOS', windows: 'Windows', linux: 'Linux' }[os] || os);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -180,43 +347,96 @@ function roleBadges(d) {
   if (!d.self && !d.trusted) b.push('<span class="badge bad">Khác mật khẩu</span>');
   if (d.trusted && d.role === 'host') b.push('<span class="badge host">Máy chủ</span>');
   if (d.trusted && d.role === 'client') b.push(d.connected ? '<span class="badge ok">Đã kết nối</span>' : '<span class="badge warn">Đang kết nối…</span>');
+  if (d.self) b.push('<span class="badge">Máy này</span>');
   if (!d.online) b.push('<span class="badge">Ngoại tuyến</span>');
   return b.join('');
 }
 
+function setHost(id) {
+  return api('host', { ID: id }).then(() => { toast(id ? 'Đã chọn máy chủ' : 'Đã dừng chia sẻ'); refresh(); }).catch((e) => toast(e.message));
+}
+
 function renderNotices() {
   const n = [];
-  if (!st.hasPassword) n.push('<div class="notice warn">Bước 1: đặt <b>mật khẩu nhóm</b> giống nhau trên tất cả các máy (Mac và Windows) để chúng nhận ra nhau.</div>');
-  if (!st.permissionOK && st.self.os === 'darwin') n.push('<div class="notice warn">macOS chưa cấp quyền <b>Trợ năng (Accessibility)</b> cho Crossdesk, nên máy này chưa điều khiển hay được điều khiển. <button id="permBtn">Mở yêu cầu cấp quyền</button><br><span style="font-size:12px">Vào System Settings → Privacy &amp; Security → Accessibility, bật Crossdesk. Có thể phải bật cả Input Monitoring. Sau đó thoát và mở lại ứng dụng.</span></div>');
-  else if (!st.permissionOK && st.self.os === 'linux') n.push('<div class="notice warn">Linux: Crossdesk chưa có quyền truy cập <code>/dev/uinput</code> và <code>/dev/input</code>. Chạy một lần rồi đăng xuất, đăng nhập lại:<br><code style="font-size:12px">sudo crossdesk-setup</code> &nbsp;(hoặc chạy <code>install.sh</code> trong gói tải về)</div>');
-  else if (st.captureError && st.captureError !== 'missing-permission') n.push('<div class="notice bad">Không bắt được chuột/bàn phím: ' + esc(st.captureError) + '</div>');
-  if (st.self.role === 'client' && !st.self.connected) {
+  if (st.captureError && st.captureError !== 'missing-permission') n.push('<div class="notice bad"><div class="grow">Không bắt được chuột/bàn phím: ' + esc(st.captureError) + '</div></div>');
+  if (st.self.role === 'client' && !st.self.connected && page !== 'logs') {
     const host = st.devices.find((d) => d.id === st.host);
     const why = !host ? 'chưa thấy máy chủ trong mạng' : !host.online ? 'máy chủ đang ngoại tuyến' : (st.clientError || 'đang kết nối');
-    n.push('<div class="notice warn">Chưa kết nối tới máy chủ: ' + esc(why) + '.</div>');
+    n.push('<div class="notice warn"><div class="grow">Chưa kết nối tới máy chủ: ' + esc(why) + '.</div></div>');
   }
   $('notices').innerHTML = n.join('');
-  const pb = $('permBtn');
-  if (pb) pb.onclick = () => api('permission', {}).then((r) => toast(r.trusted ? 'Đã có quyền' : 'Hãy bật quyền trong System Settings')).catch((e) => toast(e.message));
+}
+
+function renderSidebar() {
+  const r = st.self.role;
+  $('version').textContent = st.version;
+  $('meIcon').innerHTML = osIcon(st.self.os, 16);
+  $('meName').textContent = st.self.name;
+  const [dot, text] = r === 'host' ? ['host', 'Máy chủ'] : r === 'client' ? (st.self.connected ? ['ok', 'Đã kết nối'] : ['warn', 'Đang kết nối…']) : ['', 'Chưa chia sẻ'];
+  $('meDot').className = 'status-dot ' + dot;
+  $('meStatus').textContent = text;
+}
+
+function setupSteps() {
+  const others = st.devices.filter((d) => !d.self && d.trusted);
+  const needPerm = st.self.os !== 'windows';
+  const s = [
+    { done: st.hasPassword, t: 'Đặt mật khẩu nhóm (giống nhau trên mọi máy)', go: 'settings' },
+  ];
+  if (needPerm) s.push({ done: st.permissionOK, t: st.self.os === 'darwin' ? 'Cấp quyền Accessibility cho Crossdesk' : 'Cấp quyền /dev/uinput và nhóm input', go: 'settings' });
+  s.push({ done: others.length > 0, t: 'Mở Crossdesk trên máy khác, cùng mật khẩu', go: 'devices' });
+  s.push({ done: !!st.host, t: 'Chọn máy chủ (máy có bàn phím, chuột bạn dùng)', go: 'devices' });
+  s.push({ done: st.devices.filter((d) => d.cell && d.trusted).length >= 2, t: 'Sắp xếp vị trí các màn hình', go: 'layout' });
+  return s;
+}
+
+function renderOverview() {
+  const r = st.self.role, host = st.devices.find((d) => d.id === st.host);
+  let icon = ICON.idle, title = 'Chưa chia sẻ', text = 'Chọn máy có bàn phím và chuột bạn muốn dùng làm máy chủ.', action = '';
+  if (r === 'host') {
+    const n = (st.connectedToMe || []).length;
+    icon = ICON.host; title = 'Máy này đang là máy chủ';
+    text = n ? `Bàn phím và chuột của máy này đang điều khiển ${n} máy khác. Đẩy chuột qua mép màn hình để chuyển máy.` : 'Đang chờ máy khác kết nối…';
+    action = '<button class="btn" id="heroBtn" data-host="">Dừng chia sẻ</button>';
+  } else if (r === 'client') {
+    icon = st.self.connected ? ICON.client : ICON.wait;
+    title = st.self.connected ? `Đang được điều khiển bởi ${esc(host ? host.name : 'máy chủ')}` : 'Đang kết nối tới máy chủ…';
+    text = st.self.connected ? 'Bàn phím và chuột của máy chủ dùng được trên máy này khi con trỏ được đẩy sang.' : 'Kiểm tra máy chủ đang bật Crossdesk và cùng mạng LAN.';
+    action = st.hasPassword ? `<button class="btn" id="heroBtn" data-host="${esc(st.self.id)}">Làm máy chủ</button>` : '';
+  } else if (st.hasPassword) {
+    action = `<button class="btn primary" id="heroBtn" data-host="${esc(st.self.id)}">Làm máy chủ</button>`;
+  }
+  $('heroIcon').innerHTML = icon; $('heroTitle').innerHTML = title; $('heroText').textContent = text; $('heroAction').innerHTML = action;
+  const hb = $('heroBtn'); if (hb) hb.onclick = () => setHost(hb.dataset.host);
+
+  const group = st.devices.filter((d) => d.trusted);
+  $('statGroup').textContent = group.length;
+  $('statOnline').textContent = group.filter((d) => d.online).length;
+  $('statHost').textContent = host ? host.name : '—';
+
+  const steps = setupSteps(), done = steps.filter((s) => s.done).length;
+  $('setupCard').hidden = done === steps.length;
+  $('setupProgress').textContent = `${done}/${steps.length} bước`;
+  $('steps').innerHTML = steps.map((s, i) => `<li class="${s.done ? 'done' : ''}"><span class="num">${s.done ? '✓' : i + 1}</span><span class="t">${s.t}</span>${s.done ? '' : `<button class="btn" data-go="${s.go}">Đi tới</button>`}</li>`).join('');
+  document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => go(b.dataset.go));
+  $('setupDot').hidden = done === steps.length;
 }
 
 function renderDevices() {
-  $('devices').innerHTML = st.devices.map((d) => {
+  const html = st.devices.map((d) => {
     const canHost = st.hasPassword && d.trusted && d.online && d.role !== 'host';
     return `<div class="dev ${d.online ? '' : 'offline'}">
       <div class="icon">${osIcon(d.os)}</div>
       <div class="info">
-        <div class="name">${esc(d.name)}${d.self ? ' <span class="muted" style="font-weight:400">(máy này)</span>' : ''}</div>
+        <div class="name">${esc(d.name)}</div>
         <div class="meta">${osName(d.os)}${d.ip ? ' · ' + esc(d.ip) : ''}${d.w ? ' · ' + d.w + '×' + d.h : ''}</div>
         <div class="tags">${roleBadges(d)}</div>
-        ${canHost ? `<button class="primary" data-host="${esc(d.id)}">Làm máy chủ</button>` : ''}
+        ${canHost ? `<button class="btn" data-host="${esc(d.id)}">Làm máy chủ</button>` : ''}
       </div></div>`;
   }).join('');
-  if (st.devices.length === 1) $('devices').insertAdjacentHTML('beforeend',
-    '<div class="dev" style="border-style:dashed"><div class="info muted">Đang tìm máy khác… Hãy mở Crossdesk trên máy kia, đặt cùng mật khẩu và cho phép qua tường lửa (cổng UDP 24802, TCP 24800).</div></div>');
-  document.querySelectorAll('[data-host]').forEach((b) => b.onclick = () =>
-    api('host', { ID: b.dataset.host }).then(() => { toast('Đã chọn máy chủ'); refresh(); }).catch((e) => toast(e.message)));
-  $('stopBtn').disabled = !st.host;
+  $('devices').innerHTML = html + (st.devices.length === 1
+    ? '<div class="empty-state">Đang tìm máy khác trong mạng…<br>Mở Crossdesk trên máy kia, đặt cùng mật khẩu nhóm và cho phép qua tường lửa (UDP 24802, TCP 24800).</div>' : '');
+  document.querySelectorAll('#devices [data-host]').forEach((b) => b.onclick = () => setHost(b.dataset.host));
 }
 
 function tileHTML(d) {
@@ -232,9 +452,8 @@ function renderLayout() {
   placed.forEach((d) => { minX = Math.min(minX, d.cell.x); maxX = Math.max(maxX, d.cell.x); minY = Math.min(minY, d.cell.y); maxY = Math.max(maxY, d.cell.y); });
   minX -= 1; maxX += 1; minY -= 1; maxY += 1;
   while (maxX - minX + 1 < 5) { minX--; if (maxX - minX + 1 < 5) maxX++; }
-  const cols = maxX - minX + 1, rows = maxY - minY + 1;
   const g = $('grid');
-  g.style.gridTemplateColumns = `repeat(${cols}, auto)`;
+  g.style.gridTemplateColumns = `repeat(${maxX - minX + 1}, auto)`;
   let html = '';
   for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
     const d = placed.find((p) => p.cell.x === x && p.cell.y === y);
@@ -242,7 +461,7 @@ function renderLayout() {
   }
   g.innerHTML = html;
   const unplaced = st.devices.filter((d) => d.trusted && !d.cell);
-  $('tray').innerHTML = unplaced.length ? unplaced.map(tileHTML).join('') : '<span class="empty">Khay: thiết bị chưa đặt vào sơ đồ sẽ nằm ở đây</span>';
+  $('tray').innerHTML = unplaced.length ? unplaced.map(tileHTML).join('') : '<span class="empty">Khay: kéo thiết bị vào đây để bỏ khỏi sơ đồ</span>';
   document.querySelectorAll('.tile').forEach((t) => t.addEventListener('pointerdown', startDrag));
 }
 
@@ -260,7 +479,7 @@ function startDrag(e) {
   document.body.appendChild(ghost);
   tile.classList.add('dragging');
   const off = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  dragging = { id: tile.dataset.id, ghost, tile, hot: null };
+  dragging = { id: tile.dataset.id, hot: null };
   const move = (ev) => {
     ghost.style.left = (ev.clientX - off.x) + 'px'; ghost.style.top = (ev.clientY - off.y) + 'px';
     const t = dropTargetAt(ev.clientX, ev.clientY);
@@ -268,8 +487,7 @@ function startDrag(e) {
   };
   const up = (ev) => {
     window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
-    const target = dropTargetAt(ev.clientX, ev.clientY);
-    const id = dragging.id;
+    const target = dropTargetAt(ev.clientX, ev.clientY), id = dragging.id;
     ghost.remove(); dragging = null;
     if (target) applyDrop(id, target); else renderLayout();
   };
@@ -287,55 +505,75 @@ function applyDrop(id, target) {
   } else {
     const to = { x: +target.dataset.x, y: +target.dataset.y };
     const other = Object.keys(layout).find((k) => k !== id && layout[k].x === to.x && layout[k].y === to.y);
-    if (other) { if (from) layout[other] = from; else delete layout[other]; } // swap places
+    if (other) { if (from) layout[other] = from; else delete layout[other]; }
     layout[id] = to;
   }
-  // Optimistic update so the tile doesn't jump back while saving.
   st.devices.forEach((d) => { d.cell = layout[d.id] || null; });
   renderLayout();
   api('layout', { Layout: layout }).then(refresh).catch((e) => { toast(e.message); refresh(); });
 }
 
-function renderOptions() {
-  if (editingOptions) return;
-  $('swapOpt').checked = st.swapCmdCtrl;
-  $('speedOpt').value = st.speed;
-  $('speedVal').textContent = '×' + Number(st.speed).toFixed(1);
+function renderSettings() {
+  if (document.activeElement !== $('nameInput')) $('nameInput').value = st.self.name;
+  $('pwBtn').textContent = st.hasPassword ? 'Đổi' : 'Đặt';
+  $('pwBtn').classList.toggle('primary', !st.hasPassword);
+  if (!editingOptions) {
+    $('swapOpt').checked = st.swapCmdCtrl;
+    $('autostartOpt').checked = !!st.autostart;
+    $('speedOpt').value = st.speed;
+    $('speedVal').textContent = '×' + Number(st.speed).toFixed(1);
+  }
+  const os = st.self.os;
+  $('permCard').hidden = os === 'windows';
+  if (os === 'darwin') {
+    $('permTitle').textContent = 'Accessibility (Trợ năng)';
+    $('permText').textContent = 'Cần để Crossdesk đọc và điều khiển chuột, bàn phím. Bật trong System Settings → Privacy & Security → Accessibility (và Input Monitoring), sau đó mở lại ứng dụng.';
+  } else {
+    $('permTitle').textContent = '/dev/uinput và nhóm input';
+    $('permText').textContent = 'Chạy một lần: sudo crossdesk-setup (hoặc install.sh trong gói tải về), rồi đăng xuất và đăng nhập lại.';
+  }
+  $('permBadge').innerHTML = st.permissionOK ? '<span class="badge ok">Đã cấp</span>' : '<span class="badge warn">Chưa cấp</span>';
+  $('permAction').innerHTML = !st.permissionOK && os === 'darwin' ? '<button class="btn primary" id="permBtn">Mở cấp quyền</button>' : '';
+  const pb = $('permBtn');
+  if (pb) pb.onclick = () => api('permission', {}).then((r) => toast(r.trusted ? 'Đã có quyền' : 'Hãy bật Crossdesk trong System Settings')).catch((e) => toast(e.message));
 }
 
 function render() {
-  const r = st.self.role;
-  $('selfRole').className = 'badge ' + (r === 'host' ? 'host' : r === 'client' && st.self.connected ? 'ok' : '');
-  $('selfRole').textContent = r === 'host' ? 'Máy chủ' : r === 'client' ? (st.self.connected ? 'Máy khách · đã kết nối' : 'Máy khách') : 'Chưa chia sẻ';
-  $('version').textContent = st.version;
-  if (document.activeElement !== $('nameInput')) $('nameInput').value = st.self.name;
-  $('pwBtn').textContent = st.hasPassword ? 'Đổi mật khẩu' : 'Đặt mật khẩu';
-  $('pwBtn').classList.toggle('primary', !st.hasPassword);
-  renderNotices(); renderDevices(); renderLayout(); renderOptions();
-  const logs = $('logs'), atBottom = logs.scrollTop + logs.clientHeight >= logs.scrollHeight - 4;
-  logs.textContent = (st.logs || []).join('\n');
-  if (atBottom) logs.scrollTop = logs.scrollHeight;
+  renderSidebar();
+  renderNotices();
+  if (page === 'overview') renderOverview(); else { const s = setupSteps(); $('setupDot').hidden = s.every((x) => x.done); }
+  if (page === 'devices') renderDevices();
+  if (page === 'layout') renderLayout();
+  if (page === 'settings') renderSettings();
+  if (page === 'logs') {
+    const logs = $('logs'), atBottom = logs.scrollTop + logs.clientHeight >= logs.scrollHeight - 4;
+    logs.textContent = (st.logs || []).join('\n');
+    if (atBottom) logs.scrollTop = logs.scrollHeight;
+  }
+  if (page === 'about') $('aboutVersion').textContent = 'Phiên bản ' + st.version;
+  $('headActions').innerHTML = page === 'devices' && st.host ? '<button class="btn" id="stopBtn">Dừng chia sẻ</button>' : '';
+  const sb = $('stopBtn'); if (sb) sb.onclick = () => setHost('');
 }
 
 async function refresh() {
   try { st = await api('status'); render(); }
-  catch (e) { $('notices').innerHTML = '<div class="notice bad">Mất kết nối với ứng dụng: ' + esc(e.message) + '</div>'; }
+  catch (e) { $('notices').innerHTML = '<div class="notice bad"><div class="grow">Mất kết nối với Crossdesk: ' + esc(e.message) + '</div></div>'; }
 }
 
-$('pwBtn').onclick = () => {
-  const pw = $('pwInput').value;
-  api('password', { Password: pw }).then(() => { $('pwInput').value = ''; toast('Đã lưu mật khẩu'); refresh(); }).catch((e) => toast(e.message));
-};
+$('pwBtn').onclick = () => api('password', { Password: $('pwInput').value }).then(() => { $('pwInput').value = ''; toast('Đã lưu mật khẩu nhóm'); refresh(); }).catch((e) => toast(e.message));
 $('pwInput').onkeydown = (e) => { if (e.key === 'Enter') $('pwBtn').click(); };
 $('nameBtn').onclick = () => api('name', { Name: $('nameInput').value }).then(() => { toast('Đã đổi tên'); refresh(); }).catch((e) => toast(e.message));
 $('nameInput').onkeydown = (e) => { if (e.key === 'Enter') $('nameBtn').click(); };
-$('stopBtn').onclick = () => api('host', { ID: '' }).then(() => { toast('Đã dừng chia sẻ'); refresh(); }).catch((e) => toast(e.message));
-$('quitBtn').onclick = () => { if (confirm('Tắt Crossdesk trên máy này?')) api('quit', {}).then(() => { document.body.innerHTML = '<main><p>Đã tắt Crossdesk. Có thể đóng tab này.</p></main>'; }).catch((e) => toast(e.message)); };
+$('quitBtn').onclick = () => { if (confirm('Thoát Crossdesk trên máy này?')) api('quit', {}).catch((e) => toast(e.message)); };
 const saveOptions = () => api('options', { SwapCmdCtrl: $('swapOpt').checked, Speed: +$('speedOpt').value }).then(refresh).catch((e) => toast(e.message));
 $('swapOpt').onchange = saveOptions;
+$('autostartOpt').onchange = (e) => api('autostart', { Enabled: e.target.checked })
+  .then(() => { toast(e.target.checked ? 'Crossdesk sẽ tự chạy khi đăng nhập' : 'Đã tắt tự khởi động'); refresh(); })
+  .catch((err) => { toast(err.message); refresh(); });
 $('speedOpt').oninput = () => { editingOptions = true; $('speedVal').textContent = '×' + Number($('speedOpt').value).toFixed(1); };
 $('speedOpt').onchange = () => { editingOptions = false; saveOptions(); };
 
+go(page);
 refresh();
 setInterval(refresh, 1000);
 </script>

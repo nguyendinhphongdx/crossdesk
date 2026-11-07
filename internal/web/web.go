@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"crossdesk/internal/agent"
+	"crossdesk/internal/autostart"
 	"crossdesk/internal/server"
 )
 
@@ -48,6 +49,7 @@ type Server struct {
 	Token string
 	Logs  *LogRing
 	Quit  func()
+	Show  func()
 	port  string
 }
 
@@ -65,8 +67,9 @@ func (s *Server) Handler(port string) http.Handler {
 	mux.HandleFunc("GET /api/status", s.api(func(r *http.Request) (any, error) {
 		return struct {
 			agent.Status
-			Logs []string `json:"logs"`
-		}{s.Agent.Status(), s.Logs.Lines()}, nil
+			Logs      []string `json:"logs"`
+			Autostart bool     `json:"autostart"`
+		}{s.Agent.Status(), s.Logs.Lines(), autostart.Enabled()}, nil
 	}))
 	mux.HandleFunc("POST /api/password", s.api(func(r *http.Request) (any, error) {
 		var b struct{ Password string }
@@ -109,6 +112,19 @@ func (s *Server) Handler(port string) http.Handler {
 	}))
 	mux.HandleFunc("POST /api/permission", s.api(func(r *http.Request) (any, error) {
 		return map[string]bool{"trusted": s.Agent.RequestPermission()}, nil
+	}))
+	mux.HandleFunc("POST /api/autostart", s.api(func(r *http.Request) (any, error) {
+		var b struct{ Enabled bool }
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			return nil, err
+		}
+		return nil, autostart.Set(b.Enabled)
+	}))
+	mux.HandleFunc("POST /api/show", s.api(func(r *http.Request) (any, error) {
+		if s.Show != nil {
+			s.Show()
+		}
+		return nil, nil
 	}))
 	mux.HandleFunc("POST /api/quit", s.api(func(r *http.Request) (any, error) {
 		go s.Quit()

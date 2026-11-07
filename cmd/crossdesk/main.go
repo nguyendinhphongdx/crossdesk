@@ -1,6 +1,6 @@
 // Crossdesk: share one keyboard and mouse/trackpad between computers on a LAN.
-// Run it on every machine; it opens a control page in the browser where you
-// pick the host and arrange the screens.
+// Run it on every machine. It lives in the menu bar / notification area and
+// opens a window where you pick the host and arrange the screens.
 package main
 
 import (
@@ -13,13 +13,13 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"time"
 
 	"crossdesk/internal/agent"
+	"crossdesk/internal/ui"
 	"crossdesk/internal/web"
 )
 
@@ -36,7 +36,8 @@ type uiInfo struct {
 func uiInfoPath() string { return filepath.Join(agent.ConfigDir(), "ui.json") }
 
 func main() {
-	noBrowser := flag.Bool("no-browser", false, "don't open the control page on start")
+	hidden := flag.Bool("hidden", false, "start in the background (menu bar / tray icon only)")
+	noBrowser := flag.Bool("no-browser", false, "same as -hidden")
 	flag.Parse()
 
 	os.MkdirAll(agent.ConfigDir(), 0o700)
@@ -53,11 +54,13 @@ func main() {
 
 	ln, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(uiPort))
 	if err != nil {
-		// Already running: just bring up its page.
+		// Already running: ask it to bring its window to the front.
 		if b, err := os.ReadFile(uiInfoPath()); err == nil {
 			var info uiInfo
 			if json.Unmarshal(b, &info) == nil {
-				openBrowser(pageURL(info))
+				if !*hidden && !*noBrowser {
+					askToShow(info)
+				}
 				return
 			}
 		}
@@ -82,36 +85,33 @@ func main() {
 		time.Sleep(300 * time.Millisecond)
 		os.Exit(0)
 	}
-	ws := &web.Server{Agent: a, Token: info.Token, Logs: ring, Quit: quit}
+	ws := &web.Server{Agent: a, Token: info.Token, Logs: ring, Quit: quit, Show: ui.Show}
 	go func() {
 		srv := &http.Server{Handler: ws.Handler(strconv.Itoa(uiPort)), ReadHeaderTimeout: 5 * time.Second}
 		log.Fatal(srv.Serve(ln))
 	}()
 
-	url := pageURL(info)
 	log.Printf("control page: http://127.0.0.1:%d/", uiPort)
-	if !*noBrowser {
-		openBrowser(url)
+	go func() { log.Fatal(a.Run()) }()
+	// The native shell owns the main thread until the user quits.
+	ui.Run(ui.Options{URL: pageURL(info), ShowWindow: !*hidden && !*noBrowser, OnQuit: quit})
+}
+
+// askToShow tells the running instance to show its window.
+func askToShow(info uiInfo) {
+	req, _ := http.NewRequest("POST", "http://127.0.0.1:"+strconv.Itoa(info.Port)+"/api/show", nil)
+	req.Header.Set("X-Token", info.Token)
+	resp, err := (&http.Client{Timeout: 3 * time.Second}).Do(req)
+	if err == nil {
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			return
+		}
 	}
-	log.Fatal(a.Run())
+	ui.OpenBrowser(pageURL(info))
 }
 
 // The token travels in the URL fragment, which browsers never send to servers.
 func pageURL(i uiInfo) string {
 	return "http://127.0.0.1:" + strconv.Itoa(i.Port) + "/#token=" + i.Token
-}
-
-func openBrowser(url string) {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", url)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	default:
-		cmd = exec.Command("xdg-open", url)
-	}
-	if err := cmd.Start(); err != nil {
-		log.Printf("open the control page manually: %s (%v)", url, err)
-	}
 }
