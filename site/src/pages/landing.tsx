@@ -98,6 +98,7 @@ const platformRows: { label: string; mac: Cell; win: Cell; linux: Cell }[] = [
   { label: "Làm máy chủ (chia sẻ bàn phím, chuột)", mac: true, win: true, linux: true },
   { label: "Làm máy khách (được điều khiển)", mac: true, win: true, linux: true },
   { label: "Trackpad: di chuyển, cuộn mượt", mac: true, win: true, linux: "Một ngón di chuyển, hai ngón cuộn" },
+  { label: "Chia sẻ clipboard (chữ, ảnh)", mac: true, win: true, linux: "Cần wl-clipboard hoặc xclip" },
   { label: "Môi trường đồ hoạ", mac: "macOS 11 trở lên", win: "Windows 10, 11", linux: "X11 và Wayland" },
   { label: "Kiến trúc CPU", mac: "Apple Silicon, Intel", win: "x64, ARM64", linux: "x64, ARM64" },
   { label: "Quyền cần cấp một lần", mac: "Accessibility", win: "Tường lửa (mạng Private)", linux: "Nhóm input, /dev/uinput" },
@@ -111,7 +112,7 @@ const faqs = [
   { q: "Dùng được trên Wayland không?", a: "Được. Trên Linux, Crossdesk làm việc trực tiếp với lớp input của kernel (evdev và uinput), nên chạy được trên cả X11 lẫn Wayland. Script cài đặt cấp quyền một lần." },
   { q: "Vì sao macOS yêu cầu quyền Accessibility?", a: "Để đọc chuột và bàn phím khi Mac làm máy chủ, và để thao tác khi Mac được điều khiển. Đây là quyền bắt buộc với mọi ứng dụng chia sẻ bàn phím trên macOS." },
   { q: "Một máy chủ điều khiển được bao nhiêu máy?", a: "Không giới hạn cứng. Mỗi máy là một ô trên sơ đồ; con trỏ đi xuyên từ máy này sang máy khác theo đúng vị trí bạn sắp xếp." },
-  { q: "Có chia sẻ clipboard hay kéo thả file không?", a: "Chưa. Phiên bản hiện tại tập trung vào chuột và bàn phím. Clipboard nằm trong lộ trình phát triển." },
+  { q: "Có chia sẻ clipboard không?", a: "Có. Copy chữ hoặc ảnh ở máy này, đẩy chuột sang máy kia rồi dán — nội dung đi theo con trỏ, được mã hoá như phím bấm, tối đa 10 MB. Có thể tắt trong Cài đặt. Trên Linux cần cài wl-clipboard (Wayland) hoặc xclip (X11). Chia sẻ file (copy file trong Finder/Explorer) chưa được hỗ trợ." },
 ]
 
 function PlatformCell({ v }: { v: Cell }) {

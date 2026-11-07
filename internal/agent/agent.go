@@ -13,10 +13,12 @@ import (
 	"sort"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"crossdesk/internal/capture"
 	"crossdesk/internal/client"
+	"crossdesk/internal/clipboard"
 	"crossdesk/internal/inject"
 	"crossdesk/internal/server"
 )
@@ -27,13 +29,14 @@ const (
 )
 
 type Agent struct {
-	version string
-	mu      sync.Mutex
-	cfg     *Config
-	key     []byte
-	peers   map[string]*peer
-	inj     inject.Injector
-	srv     *server.Server
+	version   string
+	shareClip atomic.Bool
+	mu        sync.Mutex
+	cfg       *Config
+	key       []byte
+	peers     map[string]*peer
+	inj       inject.Injector
+	srv       *server.Server
 
 	captureRunning bool
 	captureErr     string
@@ -55,8 +58,10 @@ func New(version string) (*Agent, error) {
 		return nil, err
 	}
 	a := &Agent{version: version, cfg: cfg, key: groupKey(cfg.Password), peers: map[string]*peer{}, inj: inj, changed: make(chan struct{}, 1)}
+	a.shareClip.Store(cfg.ShareClipboard)
 	a.srv = server.New(server.Config{SelfID: cfg.ID, Password: cfg.Password, Speed: cfg.Speed},
-		server.Platform{Freeze: capture.Freeze, Warp: capture.Warp, Bounds: capture.ScreenBounds})
+		server.Platform{Freeze: capture.Freeze, Warp: capture.Warp, Bounds: capture.ScreenBounds,
+			Clip: clipboard.System, ClipEnabled: a.clipboardOn})
 	a.srv.SetLayout(cfg.Shared.Layout)
 	return a, nil
 }
@@ -170,10 +175,20 @@ func (a *Agent) receiveBeacons() {
 }
 
 // reconcile makes this device's running role match the shared config.
+const (
+	hideOfflineAfter   = time.Minute
+	forgetOfflineAfter = 10 * time.Minute
+)
+
 func (a *Agent) reconcile() {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	sh := &a.cfg.Shared
+	for id, p := range a.peers {
+		if time.Since(p.LastSeen) > forgetOfflineAfter && id != sh.Host {
+			delete(a.peers, id)
+		}
+	}
 	a.srv.SetLayout(sh.Layout)
 
 	if sh.Host == a.cfg.ID && a.cfg.Password != "" {
@@ -193,7 +208,8 @@ func (a *Agent) reconcile() {
 		a.stopClientLocked()
 		if target != "" {
 			swap := a.cfg.SwapCmdCtrl && (p0(a.peers[sh.Host]).OS == "darwin") != (runtime.GOOS == "darwin")
-			a.cli = client.Start(client.Config{Server: target, Password: a.cfg.Password, ID: a.cfg.ID, Name: a.cfg.Name, SwapCmdCtrl: swap}, a.inj)
+			a.cli = client.Start(client.Config{Server: target, Password: a.cfg.Password, ID: a.cfg.ID, Name: a.cfg.Name, SwapCmdCtrl: swap,
+				Clip: clipboard.System, ClipEnabled: a.clipboardOn}, a.inj)
 			a.cliTarget = target
 			log.Printf("following host %s at %s (swap Cmd/Ctrl: %v)", a.peers[sh.Host].Name, target, swap)
 		}
@@ -312,6 +328,8 @@ type Status struct {
 	Version       string       `json:"version"`
 	ClientError   string       `json:"clientError,omitempty"`
 	SwapCmdCtrl   bool         `json:"swapCmdCtrl"`
+	ShareClip     bool         `json:"shareClipboard"`
+	ClipProblem   string       `json:"clipboardProblem,omitempty"`
 	Speed         float64      `json:"speed"`
 	ConnectedToMe []string     `json:"connectedToMe"`
 }
@@ -334,12 +352,18 @@ func (a *Agent) Status() Status {
 	}
 	st := Status{Self: self, HasPassword: a.cfg.Password != "", Host: sh.Host, CaptureError: a.captureErr,
 		SwapCmdCtrl: a.cfg.SwapCmdCtrl, Speed: a.cfg.Speed, ConnectedToMe: a.srv.Connected(),
+		ShareClip: a.cfg.ShareClipboard, ClipProblem: clipboard.Problem(),
 		PermissionOK: capture.Trusted(false), Version: a.version}
 	if a.cli != nil {
 		st.ClientError = a.cli.LastError()
 	}
 	st.Devices = append(st.Devices, self)
 	for id, p := range a.peers {
+		// Devices gone for a while (e.g. reinstalled with a new ID) are hidden,
+		// unless they still matter: the host or a screen on the layout.
+		if !p.online() && time.Since(p.LastSeen) > hideOfflineAfter && id != sh.Host && cell(id) == nil {
+			continue
+		}
 		role := "idle"
 		if p.Trusted {
 			role = p.Role
@@ -379,6 +403,18 @@ func (a *Agent) SetName(name string) error {
 	a.mu.Unlock()
 	a.poke()
 	return nil
+}
+
+// clipboardOn is read by the server/client before every clipboard transfer,
+// sometimes while they hold their own locks, so it must not take a.mu.
+func (a *Agent) clipboardOn() bool { return a.shareClip.Load() }
+
+func (a *Agent) SetShareClipboard(on bool) {
+	a.shareClip.Store(on)
+	a.mu.Lock()
+	a.cfg.ShareClipboard = on
+	a.cfg.save()
+	a.mu.Unlock()
 }
 
 func (a *Agent) SetOptions(swap bool, speed float64) {

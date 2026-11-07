@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"crossdesk/internal/capture"
+	"crossdesk/internal/clipboard"
 	"crossdesk/internal/proto"
 )
 
@@ -32,6 +33,9 @@ type Platform struct {
 	Freeze func(bool)
 	Warp   func(x, y float64)
 	Bounds func() capture.Bounds
+	// Clipboard sharing (optional). Clip may be nil.
+	Clip        clipboard.IO
+	ClipEnabled func() bool
 }
 
 type client struct {
@@ -67,13 +71,15 @@ type Server struct {
 	local       capture.Bounds
 	localKeys   map[uint16]bool // keys held on the host before switching away
 	buttonsHeld int
+	clipSynced  map[string][32]byte // per client: clipboard both sides already share
 }
 
 func New(cfg Config, pf Platform) *Server {
 	if cfg.Speed <= 0 {
 		cfg.Speed = 1
 	}
-	return &Server{cfg: cfg, pf: pf, layout: map[string]Cell{}, clients: map[string]*client{}, localKeys: map[uint16]bool{}}
+	return &Server{cfg: cfg, pf: pf, layout: map[string]Cell{}, clients: map[string]*client{}, localKeys: map[uint16]bool{},
+		clipSynced: map[string][32]byte{}}
 }
 
 // SetPassword changes the password for future connections.
@@ -238,6 +244,7 @@ func (s *Server) Handle(ev capture.Event) bool {
 			}
 			if c := s.clients[n]; c != nil {
 				s.send(s.cur, proto.Msg{Type: proto.Leave})
+				s.requestClip(s.cur)
 				s.enter(c, d, r)
 				return true
 			}
@@ -278,6 +285,7 @@ func (s *Server) enter(c *client, d dir, r float64) {
 	s.send(c, proto.Msg{Type: proto.Enter, X: int32(s.vx), Y: int32(s.vy)})
 	s.send(c, proto.Msg{Type: proto.MouseMove, X: int32(s.vx), Y: int32(s.vy)})
 	log.Printf("-> %s", c.name)
+	go s.pushClip(c)
 }
 
 // goHome returns the cursor to the host. Caller holds s.mu.
@@ -287,6 +295,7 @@ func (s *Server) goHome(d dir, r float64, notify bool) {
 	}
 	if notify {
 		s.send(s.cur, proto.Msg{Type: proto.Leave})
+		s.requestClip(s.cur)
 	}
 	s.cur = nil
 	b := s.local
@@ -401,10 +410,17 @@ func (s *Server) handleConn(c net.Conn) {
 			}
 		}
 	}()
+	var clip proto.ClipAssembler
 	for {
-		if _, err := conn.Recv(8 * time.Second); err != nil {
+		m, err := conn.Recv(8 * time.Second)
+		if err != nil {
 			log.Printf("client %q disconnected: %v", name, err)
 			break
+		}
+		if kind, data, done, cerr := clip.Feed(m); cerr != nil {
+			log.Printf("clipboard from %q: %v", name, cerr)
+		} else if done {
+			go s.gotClip(cl, clipboard.Content{Kind: clipboard.Kind(kind), Data: data})
 		}
 	}
 	close(done)
@@ -435,5 +451,59 @@ func (s *Server) abandon() {
 		s.cur = nil
 		s.pf.Freeze(false)
 		log.Printf("<- home (client gone)")
+	}
+}
+
+func (s *Server) clipOn() bool {
+	return s.pf.Clip != nil && (s.pf.ClipEnabled == nil || s.pf.ClipEnabled())
+}
+
+// requestClip asks a client for its clipboard (it answers only if changed).
+// Caller holds s.mu.
+func (s *Server) requestClip(c *client) {
+	if s.clipOn() {
+		s.send(c, proto.Msg{Type: proto.ClipRequest})
+	}
+}
+
+// pushClip sends the host clipboard to c unless c already has it. It runs
+// outside the input hook: reading the clipboard can take a moment.
+func (s *Server) pushClip(c *client) {
+	if !s.clipOn() {
+		return
+	}
+	content, ok := s.pf.Clip.Read()
+	if !ok || len(content.Data) > proto.MaxClip {
+		return
+	}
+	h := content.Hash()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if c.closed || s.clipSynced[c.id] == h {
+		return
+	}
+	s.clipSynced[c.id] = h
+	for _, m := range proto.ClipMessages(byte(content.Kind), content.Data) {
+		s.send(c, m)
+	}
+}
+
+// gotClip applies a clipboard received from client from, and forwards it to
+// the client the cursor is on now (if the cursor already hopped further).
+func (s *Server) gotClip(from *client, content clipboard.Content) {
+	if !s.clipOn() {
+		return
+	}
+	h := content.Hash()
+	s.mu.Lock()
+	s.clipSynced[from.id] = h
+	cur := s.cur
+	s.mu.Unlock()
+	if err := s.pf.Clip.Write(content); err != nil {
+		log.Printf("clipboard: %v", err)
+		return
+	}
+	if cur != nil && cur != from {
+		s.pushClip(cur)
 	}
 }

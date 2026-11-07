@@ -27,6 +27,16 @@ const (
 	Key Type = 7
 	// Ping: keepalive.
 	Ping Type = 8
+
+	// Clipboard sync. Older peers ignore these types.
+	// ClipRequest: server -> client, "send me your clipboard if it changed".
+	ClipRequest Type = 9
+	// ClipBegin: Button = clipboard kind (1 text, 2 PNG), X = total byte size.
+	ClipBegin Type = 10
+	// ClipChunk: Name carries the next piece of data (up to ClipChunkSize bytes).
+	ClipChunk Type = 11
+	// ClipEnd: the transfer is complete.
+	ClipEnd Type = 12
 )
 
 type Msg struct {
@@ -55,7 +65,7 @@ func (m Msg) Marshal() []byte {
 		b = append(b, 0)
 	}
 	b = binary.BigEndian.AppendUint16(b, m.Key)
-	if len(m.Name) > 255 {
+	if m.Type != ClipChunk && len(m.Name) > 255 {
 		m.Name = m.Name[:255]
 	}
 	return append(b, m.Name...)

@@ -5,9 +5,11 @@ import (
 	"errors"
 	"log"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 
+	"crossdesk/internal/clipboard"
 	"crossdesk/internal/inject"
 	"crossdesk/internal/keymap"
 	"crossdesk/internal/proto"
@@ -20,6 +22,9 @@ type Config struct {
 	Name        string
 	SwapCmdCtrl bool
 	Verbose     bool
+	// Clipboard sharing (optional).
+	Clip        clipboard.IO
+	ClipEnabled func() bool
 }
 
 // Client keeps a connection to one host until stopped.
@@ -83,6 +88,10 @@ type session struct {
 	inj     inject.Injector
 	keys    map[uint16]bool
 	buttons map[int]bool
+	conn    *proto.Conn
+	clip    proto.ClipAssembler
+	clipMu  sync.Mutex
+	synced  [32]byte // clipboard content both sides already share
 }
 
 func (c *Client) runOnce() error {
@@ -112,7 +121,7 @@ func (c *Client) runOnce() error {
 	defer conn.Close()
 
 	scr := c.inj.Screen()
-	s := &session{cfg: c.cfg, inj: c.inj, keys: map[uint16]bool{}, buttons: map[int]bool{}}
+	s := &session{cfg: c.cfg, inj: c.inj, keys: map[uint16]bool{}, buttons: map[int]bool{}, conn: conn}
 	defer s.releaseAll()
 
 	if err := conn.Send(proto.Msg{Type: proto.Hello, X: scr.X, Y: scr.Y, W: scr.W, H: scr.H, Name: c.cfg.ID + "\n" + c.cfg.Name}); err != nil {
@@ -157,7 +166,54 @@ func (c *Client) runOnce() error {
 	}
 }
 
+func (s *session) clipOn() bool {
+	return s.cfg.Clip != nil && (s.cfg.ClipEnabled == nil || s.cfg.ClipEnabled())
+}
+
+// sendClip answers a ClipRequest when the local clipboard changed.
+func (s *session) sendClip() {
+	if !s.clipOn() {
+		return
+	}
+	content, ok := s.cfg.Clip.Read()
+	if !ok || len(content.Data) > proto.MaxClip {
+		return
+	}
+	h := content.Hash()
+	s.clipMu.Lock()
+	defer s.clipMu.Unlock()
+	if h == s.synced {
+		return
+	}
+	s.synced = h
+	for _, m := range proto.ClipMessages(byte(content.Kind), content.Data) {
+		if s.conn.Send(m) != nil {
+			return
+		}
+	}
+}
+
 func (s *session) apply(m proto.Msg) {
+	switch m.Type {
+	case proto.ClipRequest:
+		go s.sendClip()
+		return
+	case proto.ClipBegin, proto.ClipChunk, proto.ClipEnd:
+		kind, data, done, err := s.clip.Feed(m)
+		if err != nil {
+			log.Printf("clipboard: %v", err)
+		}
+		if done && s.clipOn() {
+			content := clipboard.Content{Kind: clipboard.Kind(kind), Data: data}
+			s.clipMu.Lock()
+			s.synced = content.Hash()
+			s.clipMu.Unlock()
+			if err := s.cfg.Clip.Write(content); err != nil {
+				log.Printf("clipboard: %v", err)
+			}
+		}
+		return
+	}
 	switch m.Type {
 	case proto.Enter:
 		s.inj.Screen() // refresh in case the resolution changed

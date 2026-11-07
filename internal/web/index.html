@@ -255,6 +255,8 @@ pre.logs { margin: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consol
           <div class="ch"><h2>Bàn phím &amp; chuột</h2></div>
           <div class="row"><div class="lbl"><b>Đổi Cmd ⇄ Ctrl giữa Mac và Windows/Linux</b><span>Cmd+C trên Mac thành Ctrl+C trên Windows, và ngược lại.</span></div>
             <label class="switch"><input type="checkbox" id="swapOpt"><span></span></label></div>
+          <div class="row"><div class="lbl"><b>Chia sẻ clipboard</b><span id="clipText">Copy ở máy này, đẩy chuột sang máy kia rồi dán. Hỗ trợ chữ và ảnh (tối đa 10 MB), gửi qua kênh mã hoá.</span></div>
+            <label class="switch"><input type="checkbox" id="clipOpt"><span></span></label></div>
           <div class="row"><div class="lbl"><b>Tốc độ con trỏ trên máy khác</b><span>Điều chỉnh nếu chuột chạy quá nhanh hoặc quá chậm khi sang máy khác.</span></div>
             <input type="range" id="speedOpt" min="0.5" max="3" step="0.1"><span id="speedVal" class="muted" style="width:38px;text-align:right"></span></div>
         </div>
@@ -543,9 +545,12 @@ function renderSettings() {
   if (!editingOptions) {
     $('swapOpt').checked = st.swapCmdCtrl;
     $('autostartOpt').checked = !!st.autostart;
+    $('clipOpt').checked = !!st.shareClipboard;
     $('speedOpt').value = st.speed;
     $('speedVal').textContent = '×' + Number(st.speed).toFixed(1);
   }
+  setHTML('clipText', 'Copy ở máy này, đẩy chuột sang máy kia rồi dán. Hỗ trợ chữ và ảnh (tối đa 10 MB), gửi qua kênh mã hoá.' +
+    (st.clipboardProblem ? '<br><span style="color:var(--warn)">' + esc(st.clipboardProblem) + '</span>' : ''));
   const os = st.self.os;
   $('permCard').hidden = os === 'windows';
   if (os === 'darwin') {
@@ -637,6 +642,9 @@ $('autostartOpt').onchange = (e) => api('autostart', { Enabled: e.target.checked
   .then(() => { toast(e.target.checked ? 'Crossdesk sẽ tự chạy khi đăng nhập' : 'Đã tắt tự khởi động'); refresh(); })
   .catch((err) => { toast(err.message); refresh(); });
 $('updatePill').onclick = () => go('settings');
+$('clipOpt').onchange = (e) => api('clipboard', { Enabled: e.target.checked })
+  .then(() => { toast(e.target.checked ? 'Đã bật chia sẻ clipboard' : 'Đã tắt chia sẻ clipboard'); refresh(); })
+  .catch((err) => toast(err.message));
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-go],[data-host],[data-act]');
   if (!b || b.disabled) return;

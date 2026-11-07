@@ -29,6 +29,9 @@ jobs:
         run: go vet ./...
       - name: Test
         shell: bash
+        env:
+          # Exercise the real clipboard on Windows runners.
+          CROSSDESK_REAL_CLIPBOARD: ${{ matrix.os == 'windows-latest' && '1' || '' }}
         run: |
           if [ "$RUNNER_OS" = "Windows" ]; then go test ./...; else go test -race ./...; fi
 

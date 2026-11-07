@@ -5,9 +5,11 @@
 set -eu
 VERSION="${VERSION:-dev}"
 OUT=dist
-APP="$OUT/Crossdesk.app"
+# ".noindex" keeps Spotlight/Launchpad from listing the build output as an
+# installed copy of the app.
+APP="$OUT/build.noindex/Crossdesk.app"
 LDFLAGS="-s -w -X main.version=$VERSION"
-mkdir -p "$OUT/mac"
+mkdir -p "$OUT/mac" "$OUT/build.noindex"
 
 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 CC="clang -arch arm64" \
   go build -trimpath -ldflags "$LDFLAGS" -o "$OUT/mac/crossdesk-arm64" ./cmd/crossdesk
@@ -27,6 +29,6 @@ plutil -replace CFBundleVersion -string "$PLAIN_VERSION" "$APP/Contents/Info.pli
 codesign --force --deep --sign - "$APP"
 
 rm -f "$OUT/Crossdesk-macOS-universal.zip"
-(cd "$OUT" && ditto -c -k --keepParent "Crossdesk.app" Crossdesk-macOS-universal.zip)
+ditto -c -k --keepParent "$APP" "$OUT/Crossdesk-macOS-universal.zip"
 lipo -info "$APP/Contents/MacOS/crossdesk"
 echo "built $OUT/Crossdesk-macOS-universal.zip"

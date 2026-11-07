@@ -2,7 +2,9 @@ package agent
 
 import (
 	"testing"
+	"time"
 
+	"crossdesk/internal/inject"
 	"crossdesk/internal/server"
 )
 
@@ -40,3 +42,43 @@ func TestBroadcastAddrs(t *testing.T) {
 		t.Fatal("expected at least the limited broadcast address")
 	}
 }
+
+func TestStaleDevicesHiddenAndForgotten(t *testing.T) {
+	a := &Agent{cfg: &Config{ID: "me", Name: "mac", Shared: Shared{Layout: map[string]server.Cell{}}},
+		peers: map[string]*peer{}, inj: fakeInj{}, srv: server.New(server.Config{SelfID: "me"}, server.Platform{})}
+	now := time.Now()
+	a.peers["live"] = &peer{Beacon: Beacon{Name: "pc"}, LastSeen: now}
+	a.peers["recent"] = &peer{Beacon: Beacon{Name: "pc-old"}, LastSeen: now.Add(-30 * time.Second)}
+	a.peers["stale"] = &peer{Beacon: Beacon{Name: "pc-gone"}, LastSeen: now.Add(-2 * time.Minute)}
+	a.peers["placed"] = &peer{Beacon: Beacon{Name: "pc-placed"}, LastSeen: now.Add(-2 * time.Minute)}
+	a.peers["ancient"] = &peer{Beacon: Beacon{Name: "pc-ancient"}, LastSeen: now.Add(-time.Hour)}
+	a.cfg.Shared.Layout["placed"] = server.Cell{X: 1}
+
+	names := map[string]bool{}
+	for _, d := range a.Status().Devices {
+		names[d.Name] = true
+	}
+	for _, want := range []string{"mac", "pc", "pc-old", "pc-placed"} {
+		if !names[want] {
+			t.Errorf("%s should be listed", want)
+		}
+	}
+	if names["pc-gone"] || names["pc-ancient"] {
+		t.Error("devices offline for over a minute should be hidden")
+	}
+	a.reconcile()
+	if _, ok := a.peers["ancient"]; ok {
+		t.Error("devices offline for 10+ minutes should be forgotten")
+	}
+	if _, ok := a.peers["stale"]; !ok {
+		t.Error("recently offline devices are kept in memory")
+	}
+}
+
+type fakeInj struct{}
+
+func (fakeInj) Screen() inject.Screen { return inject.Screen{W: 100, H: 100} }
+func (fakeInj) MoveTo(x, y int32)     {}
+func (fakeInj) Button(int, bool)      {}
+func (fakeInj) Wheel(int32, int32)    {}
+func (fakeInj) Key(uint16, bool)      {}

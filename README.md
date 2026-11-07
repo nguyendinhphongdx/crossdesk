@@ -8,6 +8,7 @@ Dùng **một bàn phím và một con chuột/trackpad** cho nhiều máy tính
 - Tự tìm các máy trong mạng (cùng mật khẩu nhóm = cùng nhóm)
 - Chọn máy chủ và **kéo thả sắp xếp vị trí** màn hình trong bảng điều khiển
 - Tự đổi Cmd ⇄ Ctrl giữa Mac và Windows/Linux
+- Chia sẻ clipboard (chữ và ảnh) khi chuyển máy, mã hoá như phím bấm
 - Tự cập nhật trong ứng dụng (kiểm tra GitHub Releases, xác minh SHA256, khởi động lại)
 - Mã hoá toàn bộ (PBKDF2 + AES-256-GCM), gói quảng bá ký HMAC
 
@@ -45,6 +46,7 @@ Cổng mạng: TCP **24800** (input, mã hoá), UDP **24802** (tìm máy), `127.
 |---|---|
 | `cmd/crossdesk` | Ứng dụng: khởi động agent + bảng điều khiển, một phiên bản duy nhất |
 | `internal/ui` | Vỏ ứng dụng: thanh menu + cửa sổ WKWebView (macOS), khay hệ thống + WebView2 (Windows), trình duyệt (Linux) |
+| `internal/clipboard` | Clipboard chữ + ảnh: NSPasteboard (macOS), Win32 (Windows), wl-clipboard/xclip (Linux) |
 | `internal/updater` | Tự cập nhật: kiểm tra GitHub Releases, tải đúng bản, so SHA256SUMS, thay tại chỗ, khởi động lại |
 | `internal/autostart` | Khởi động cùng hệ thống: LaunchAgent, khoá Run, XDG autostart |
 | `internal/agent` | Tìm máy, đồng bộ cấu hình nhóm (máy chủ, sơ đồ), tự chuyển vai trò |
@@ -96,7 +98,7 @@ Trang tải về luôn trỏ tới `releases/latest/download/<file>`, nên khôn
 
 ## Giới hạn hiện tại
 
-- Chưa chia sẻ clipboard / kéo thả file.
+- Chưa chia sẻ file (copy file trong Finder/Explorer). Linux cần `wl-clipboard` (Wayland) hoặc `xclip` (X11) để chia sẻ clipboard.
 - App macOS chỉ ký ad-hoc (chưa notarize) → Gatekeeper cảnh báo lần đầu. Mỗi bản build mới có thể phải cấp lại quyền Accessibility.
 - Windows: không điều khiển được màn hình khoá/UAC; muốn điều khiển app chạy quyền Admin thì chạy Crossdesk bằng quyền Admin.
 - Linux máy chủ: vị trí con trỏ được ước lượng từ chuyển động (Wayland không cho đọc vị trí thật) — phải "đẩy" qua mép một chút mới chuyển máy. Touchpad: một ngón di chuyển, hai ngón cuộn; chạm-để-click chưa hỗ trợ khi đang điều khiển máy khác.

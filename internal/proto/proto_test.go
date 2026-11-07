@@ -53,3 +53,47 @@ func TestWrongPassword(t *testing.T) {
 		t.Fatalf("expected ErrAuth, got %v", err)
 	}
 }
+
+func TestClipRoundTripThroughConn(t *testing.T) {
+	sc, cc := pipe(t, "pw", "pw")
+	data := make([]byte, 3*ClipChunkSize+123)
+	for i := range data {
+		data[i] = byte(i * 7)
+	}
+	go func() {
+		for _, m := range ClipMessages(2, data) {
+			cc.Send(m)
+		}
+	}()
+	var a ClipAssembler
+	for {
+		m, err := sc.Recv(0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		kind, got, done, err := a.Feed(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if done {
+			if kind != 2 || string(got) != string(data) {
+				t.Fatal("clipboard data corrupted")
+			}
+			return
+		}
+	}
+}
+
+func TestClipAssemblerRejectsBadInput(t *testing.T) {
+	var a ClipAssembler
+	if _, _, _, err := a.Feed(Msg{Type: ClipBegin, X: MaxClip + 1}); err == nil {
+		t.Fatal("oversized transfer must be rejected")
+	}
+	a.Feed(Msg{Type: ClipBegin, Button: 1, X: 3})
+	if _, _, _, err := a.Feed(Msg{Type: ClipChunk, Name: "toolong"}); err == nil {
+		t.Fatal("overflowing chunk must be rejected")
+	}
+	if _, _, _, err := a.Feed(Msg{Type: ClipEnd}); err == nil {
+		t.Fatal("end without begin must be rejected")
+	}
+}
