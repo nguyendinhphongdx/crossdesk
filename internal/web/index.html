@@ -22,6 +22,8 @@
   }
 }
 * { box-sizing: border-box; }
+/* Rules like "all: unset; display: flex" would otherwise override [hidden]. */
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden;
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -186,7 +188,7 @@ pre.logs { margin: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consol
       <button data-page="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span>Giới thiệu</span></button>
     </nav>
     <div class="spacer"></div>
-    <button class="update-pill" id="updatePill" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span id="updatePillText"></span></button>
+    <button class="update-pill" id="updatePill" title="Bấm để xem và cài bản cập nhật" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span id="updatePillText"></span></button>
     <div class="me"><div class="ico" id="meIcon"></div><div class="t"><div class="n" id="meName"></div><div class="s"><i class="status-dot" id="meDot"></i><span id="meStatus"></span></div></div></div>
   </aside>
 
@@ -555,7 +557,10 @@ function renderSettings() {
   $('permCard').hidden = os === 'windows';
   if (os === 'darwin') {
     $('permTitle').textContent = 'Accessibility (Trợ năng)';
-    $('permText').textContent = 'Cần để Crossdesk đọc và điều khiển chuột, bàn phím. Bật trong System Settings → Privacy & Security → Accessibility (và Input Monitoring), sau đó mở lại ứng dụng.';
+    setHTML('permText', st.permissionOK
+      ? 'Crossdesk đã được phép đọc và điều khiển chuột, bàn phím.'
+      : 'Cần để Crossdesk đọc và điều khiển chuột, bàn phím. Bấm <b>Mở cấp quyền</b>, bật Crossdesk trong danh sách rồi mở lại ứng dụng.<br>' +
+        '<b>Đã bật mà vẫn báo chưa cấp?</b> Mục trong danh sách thuộc về bản Crossdesk cũ: chọn Crossdesk, bấm nút <b>−</b> để xoá, rồi bấm Mở cấp quyền và bật lại.');
   } else {
     $('permTitle').textContent = '/dev/uinput và nhóm input';
     $('permText').textContent = 'Chạy một lần: sudo crossdesk-setup (hoặc install.sh trong gói tải về), rồi đăng xuất và đăng nhập lại.';
@@ -574,7 +579,7 @@ let updBusy = false;
 function renderUpdate() {
   const u = st.update;
   $('updatePill').hidden = !u || !u.available;
-  if (u && u.available) $('updatePillText').textContent = 'Có bản mới ' + u.latest;
+  if (u && u.available) $('updatePillText').textContent = 'Cập nhật lên ' + u.latest;
   $('updateCard').hidden = !u;
   if (!u || page !== 'settings') return;
   $('updAuto').checked = !!u.auto;
@@ -652,7 +657,7 @@ document.addEventListener('click', (e) => {
   if (b.dataset.host !== undefined) return setHost(b.dataset.host);
   switch (b.dataset.act) {
     case 'perm':
-      return api('permission', {}).then((r) => toast(r.trusted ? 'Đã có quyền' : 'Hãy bật Crossdesk trong System Settings')).catch((err) => toast(err.message));
+      return api('permission', {}).then((r) => toast(r.trusted ? 'Đã có quyền' : 'Đã mở System Settings — bật Crossdesk rồi mở lại ứng dụng')).catch((err) => toast(err.message));
     case 'upd-check':
       b.disabled = true;
       return api('update/check', {}).then(refresh).catch((err) => { toast(err.message); refresh(); });

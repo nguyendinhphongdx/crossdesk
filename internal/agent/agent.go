@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os/exec"
 	"runtime"
 	"sort"
 	"strconv"
@@ -467,7 +468,15 @@ func (a *Agent) SetLayout(l map[string]server.Cell) error {
 	return nil
 }
 
-func (a *Agent) RequestPermission() bool { return capture.Trusted(true) }
+// RequestPermission asks macOS for Accessibility access and opens the
+// matching System Settings page.
+func (a *Agent) RequestPermission() bool {
+	ok := capture.Trusted(true)
+	if !ok && runtime.GOOS == "darwin" {
+		exec.Command("open", "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility").Start()
+	}
+	return ok
+}
 
 // Shutdown returns the cursor home and disconnects before the app exits.
 func (a *Agent) Shutdown() {

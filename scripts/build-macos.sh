@@ -26,7 +26,11 @@ PLAIN_VERSION=$(echo "$VERSION" | sed 's/^v//')
 case "$PLAIN_VERSION" in [0-9]*) ;; *) PLAIN_VERSION=0.0.0 ;; esac
 plutil -replace CFBundleShortVersionString -string "$PLAIN_VERSION" "$APP/Contents/Info.plist"
 plutil -replace CFBundleVersion -string "$PLAIN_VERSION" "$APP/Contents/Info.plist"
-codesign --force --deep --sign - "$APP"
+# Ad-hoc signatures normally identify the app by the hash of this exact
+# build, so macOS forgets the Accessibility grant after every update. Pin the
+# designated requirement to the bundle ID so the grant survives updates.
+codesign --force --deep --sign - \
+  --requirements '=designated => identifier "local.crossdesk.app"' "$APP"
 
 rm -f "$OUT/Crossdesk-macOS-universal.zip"
 ditto -c -k --keepParent "$APP" "$OUT/Crossdesk-macOS-universal.zip"
