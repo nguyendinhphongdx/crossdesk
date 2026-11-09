@@ -37,6 +37,10 @@ const (
 	ClipChunk Type = 11
 	// ClipEnd: the transfer is complete.
 	ClipEnd Type = 12
+
+	// LinkBeacon: a discovery beacon (JSON in Name) sent over a manual link
+	// connection instead of UDP broadcast.
+	LinkBeacon Type = 13
 )
 
 type Msg struct {
@@ -65,7 +69,7 @@ func (m Msg) Marshal() []byte {
 		b = append(b, 0)
 	}
 	b = binary.BigEndian.AppendUint16(b, m.Key)
-	if m.Type != ClipChunk && len(m.Name) > 255 {
+	if m.Type != ClipChunk && m.Type != LinkBeacon && len(m.Name) > 255 {
 		m.Name = m.Name[:255]
 	}
 	return append(b, m.Name...)

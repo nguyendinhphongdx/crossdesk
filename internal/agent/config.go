@@ -37,13 +37,14 @@ func (s Shared) clone() Shared {
 
 // Config is what this device persists to disk.
 type Config struct {
-	ID             string  `json:"id"`
-	Name           string  `json:"name"`
-	Password       string  `json:"password"`
-	SwapCmdCtrl    bool    `json:"swapCmdCtrl"`
-	ShareClipboard bool    `json:"shareClipboard"`
-	Speed          float64 `json:"speed"`
-	Shared         Shared  `json:"shared"`
+	ID             string   `json:"id"`
+	Name           string   `json:"name"`
+	Password       string   `json:"password"`
+	SwapCmdCtrl    bool     `json:"swapCmdCtrl"`
+	ShareClipboard bool     `json:"shareClipboard"`
+	ManualPeers    []string `json:"manualPeers,omitempty"` // manual links (host[:port])
+	Speed          float64  `json:"speed"`
+	Shared         Shared   `json:"shared"`
 }
 
 func ConfigDir() string {

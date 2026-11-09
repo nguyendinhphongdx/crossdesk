@@ -340,6 +340,10 @@ func (s *Server) Serve(ln net.Listener) error {
 	}
 }
 
+// ServeConn runs a client session on an already-open connection. It is used
+// when the host had to dial the client (the client accepts no connections).
+func (s *Server) ServeConn(c net.Conn) { s.handleConn(c) }
+
 func (s *Server) handleConn(c net.Conn) {
 	s.mu.Lock()
 	active, pw := s.active, s.cfg.Password

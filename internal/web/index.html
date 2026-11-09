@@ -158,6 +158,12 @@ input[type=range] { accent-color: var(--accent); width: 180px; }
 .update-pill svg { width: 15px; height: 15px; flex: none; }
 .bar { height: 6px; border-radius: 99px; background: var(--cell); overflow: hidden; width: 160px; }
 .bar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+.mlist { list-style: none; margin: 0; padding: 0 18px 4px; }
+.mlist li { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.mlist li code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.mlist li .err { color: var(--bad); font-size: 12px; }
+.ips { display: flex; gap: 6px; flex-wrap: wrap; }
+.ips code { background: var(--cell); border-radius: 6px; padding: 3px 8px; font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; user-select: all; }
 .notes { margin: 0; padding: 12px 18px 16px; white-space: pre-wrap; font: 12.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--muted); max-height: 220px; overflow: auto; border-top: 1px solid var(--line); }
 pre.logs { margin: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; padding: 14px 16px; height: calc(100vh - 170px);
   overflow: auto; white-space: pre-wrap; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
@@ -252,6 +258,13 @@ pre.logs { margin: 0; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consol
           <div class="ch"><h2>Nhóm &amp; bảo mật</h2></div>
           <div class="row"><div class="lbl"><b>Mật khẩu nhóm</b><span>Các máy dùng cùng mật khẩu sẽ tự nhận ra nhau. Mật khẩu cũng dùng để mã hoá mọi phím bấm gửi qua mạng (AES-256-GCM).</span></div>
             <input type="password" id="pwInput" placeholder="Giống nhau trên mọi máy" autocomplete="new-password"><button class="btn" id="pwBtn">Đặt</button></div>
+        </div>
+        <div class="card">
+          <div class="ch"><h2>Kết nối thủ công</h2><p>tuỳ chọn</p></div>
+          <div class="row"><div class="lbl"><b>Kết nối tới máy khác qua địa chỉ IP</b><span>Dùng khi hai máy không tự thấy nhau (mạng công ty, tường lửa chặn kết nối đến). Nhập IP của máy kia <b>trên máy bị chặn</b> — chỉ cần máy này kết nối ra được là đủ, máy nào làm máy chủ cũng được.</span></div></div>
+          <div class="row"><input type="text" id="manualInput" placeholder="Ví dụ: 192.168.0.88" style="flex:1;width:auto"><button class="btn" data-act="manual-add">Thêm</button></div>
+          <ul class="mlist" id="manualList"></ul>
+          <div class="row"><div class="lbl"><b>Địa chỉ IP của máy này</b><span>Nhập một trong các địa chỉ này trên máy kia.</span></div><div class="ips" id="localIPs"></div></div>
         </div>
         <div class="card">
           <div class="ch"><h2>Bàn phím &amp; chuột</h2></div>
@@ -462,7 +475,7 @@ function renderDevices() {
       </div></div>`;
   }).join('');
   setHTML('devices', html + (st.devices.length === 1
-    ? '<div class="empty-state">Đang tìm máy khác trong mạng…<br>Mở Crossdesk trên máy kia, đặt cùng mật khẩu nhóm và cho phép qua tường lửa (UDP 24802, TCP 24800).</div>' : ''));
+    ? '<div class="empty-state">Đang tìm máy khác trong mạng…<br>Mở Crossdesk trên máy kia, đặt cùng mật khẩu nhóm. Nếu vẫn không thấy (mạng công ty, tường lửa), dùng <b>Cài đặt → Kết nối thủ công</b>.</div>' : ''));
 }
 
 function tileHTML(d) {
@@ -553,6 +566,14 @@ function renderSettings() {
   }
   setHTML('clipText', 'Copy ở máy này, đẩy chuột sang máy kia rồi dán. Hỗ trợ chữ và ảnh (tối đa 10 MB), gửi qua kênh mã hoá.' +
     (st.clipboardProblem ? '<br><span style="color:var(--warn)">' + esc(st.clipboardProblem) + '</span>' : ''));
+  setHTML('localIPs', (st.localIPs || []).map((ip) => `<code>${esc(ip)}</code>`).join('') || '<span class="muted">Không có kết nối mạng</span>');
+  setHTML('manualList', (st.links || []).map((l) => {
+    const badge = l.state === 'connected'
+      ? `<span class="badge ok">Đã kết nối${l.peer ? ' · ' + esc(l.peer) : ''}</span>`
+      : l.state === 'error' ? '<span class="badge bad">Lỗi</span>' : '<span class="badge warn">Đang kết nối…</span>';
+    return `<li><code>${esc(l.addr)}</code>${badge}<span class="err">${l.state === 'error' && l.error ? esc(l.error) : ''}</span>
+      <span style="flex:1"></span><button class="btn" data-act="manual-del" data-addr="${esc(l.addr)}">Xoá</button></li>`;
+  }).join(''));
   const os = st.self.os;
   $('permCard').hidden = os === 'windows';
   if (os === 'darwin') {
@@ -637,6 +658,7 @@ async function refresh() {
 }
 
 $('pwBtn').onclick = () => api('password', { Password: $('pwInput').value }).then(() => { $('pwInput').value = ''; toast('Đã lưu mật khẩu nhóm'); refresh(); }).catch((e) => toast(e.message));
+$('manualInput').onkeydown = (e) => { if (e.key === 'Enter') document.querySelector('[data-act="manual-add"]').click(); };
 $('pwInput').onkeydown = (e) => { if (e.key === 'Enter') $('pwBtn').click(); };
 $('nameBtn').onclick = () => api('name', { Name: $('nameInput').value }).then(() => { toast('Đã đổi tên'); refresh(); }).catch((e) => toast(e.message));
 $('nameInput').onkeydown = (e) => { if (e.key === 'Enter') $('nameBtn').click(); };
@@ -658,6 +680,16 @@ document.addEventListener('click', (e) => {
   switch (b.dataset.act) {
     case 'perm':
       return api('permission', {}).then((r) => toast(r.trusted ? 'Đã có quyền' : 'Đã mở System Settings — bật Crossdesk rồi mở lại ứng dụng')).catch((err) => toast(err.message));
+    case 'manual-add': {
+      const v = $('manualInput').value.trim();
+      if (!v) return toast('Nhập địa chỉ IP của máy kia');
+      return api('manual', { Peers: [...(st.manualPeers || []), v] })
+        .then(() => { $('manualInput').value = ''; toast('Đang kết nối tới ' + v + '…'); refresh(); })
+        .catch((err) => toast(err.message));
+    }
+    case 'manual-del':
+      return api('manual', { Peers: (st.manualPeers || []).filter((a) => a !== b.dataset.addr) })
+        .then(() => { toast('Đã xoá'); refresh(); }).catch((err) => toast(err.message));
     case 'upd-check':
       b.disabled = true;
       return api('update/check', {}).then(refresh).catch((err) => { toast(err.message); refresh(); });

@@ -29,7 +29,9 @@ Tải ở trang web của dự án (tự nhận diện hệ điều hành) hoặ
 3. Bấm **Làm máy chủ** ở máy có bàn phím/chuột bạn muốn dùng. Các máy khác tự thành máy khách.
 4. Kéo thả các màn hình trong lưới cho giống vị trí thật. Đẩy chuột qua mép để chuyển máy.
 
-Cổng mạng: TCP **24800** (input, mã hoá), UDP **24802** (tìm máy), `127.0.0.1:24801` (bảng điều khiển, chỉ máy cục bộ).
+Cổng mạng: TCP **24800** (input, mã hoá), UDP **24802** (tìm máy), TCP **24803** (kết nối thủ công), `127.0.0.1:24801` (bảng điều khiển, chỉ máy cục bộ).
+
+**Mạng công ty / tường lửa chặn kết nối đến:** vào **Cài đặt → Kết nối thủ công** trên máy bị chặn, nhập IP của máy kia. Chỉ cần một chiều kết nối được; tìm máy, đồng bộ cấu hình, chuột, phím và clipboard đều đi qua kết nối đó, máy nào làm máy chủ cũng được.
 
 ## Kiến trúc
 

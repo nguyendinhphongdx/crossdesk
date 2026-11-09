@@ -44,10 +44,20 @@ type Agent struct {
 
 	cli       *client.Client
 	cliTarget string
+	revCli    *client.Client // session the host opened to us over a manual link
+
+	links     map[*link]struct{}
+	linkState map[string]LinkInfo
+	dialing   map[string]bool
+	reversing map[string]bool
+	linkPort  int
+	inputPort int
 
 	udp     *net.UDPConn
 	changed chan struct{}
 }
+
+var runtimeGOOS = runtime.GOOS
 
 func New(version string) (*Agent, error) {
 	cfg := loadConfig()
@@ -59,6 +69,7 @@ func New(version string) (*Agent, error) {
 		return nil, err
 	}
 	a := &Agent{version: version, cfg: cfg, key: groupKey(cfg.Password), peers: map[string]*peer{}, inj: inj, changed: make(chan struct{}, 1)}
+	a.initLinks(LinkPort)
 	a.shareClip.Store(cfg.ShareClipboard)
 	a.srv = server.New(server.Config{SelfID: cfg.ID, Password: cfg.Password, Speed: cfg.Speed},
 		server.Platform{Freeze: capture.Freeze, Warp: capture.Warp, Bounds: capture.ScreenBounds,
@@ -69,7 +80,7 @@ func New(version string) (*Agent, error) {
 
 // Run starts networking and blocks.
 func (a *Agent) Run() error {
-	ln, err := net.Listen("tcp", ":"+strconv.Itoa(InputPort))
+	ln, err := net.Listen("tcp", ":"+strconv.Itoa(a.inputPort))
 	if err != nil {
 		return fmt.Errorf("port %d is busy (is another copy running?): %w", InputPort, err)
 	}
@@ -81,6 +92,14 @@ func (a *Agent) Run() error {
 	}
 	a.udp = udp
 	go a.receiveBeacons()
+
+	lln, err := net.Listen("tcp", ":"+strconv.Itoa(a.linkPort))
+	if err != nil {
+		log.Printf("manual links unavailable: port %d: %v", a.linkPort, err)
+	} else {
+		go a.listenLinks(lln)
+	}
+	go a.dialLinks()
 
 	log.Printf("device %s (%s) ready", a.cfg.Name, a.cfg.ID)
 	t := time.NewTicker(time.Second)
@@ -112,25 +131,50 @@ func (a *Agent) role() string {
 	return "idle"
 }
 
-func (a *Agent) sendBeacon() {
+func (a *Agent) initLinks(port int) {
+	a.links = map[*link]struct{}{}
+	a.linkState = map[string]LinkInfo{}
+	a.dialing = map[string]bool{}
+	a.reversing = map[string]bool{}
+	a.linkPort = port
+	if a.inputPort == 0 {
+		a.inputPort = InputPort
+	}
+}
+
+// clientConnectedLocked: our input session with the host is up (dialed by
+// us, or opened by the host over a manual link).
+func (a *Agent) clientConnectedLocked() bool {
+	return (a.cli != nil && a.cli.Connected()) || (a.revCli != nil && a.revCli.Connected())
+}
+
+func (a *Agent) beaconBytes() []byte {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	scr := a.inj.Screen()
 	b := Beacon{App: beaconApp, ID: a.cfg.ID, Name: a.cfg.Name, OS: runtime.GOOS, Port: InputPort,
-		W: scr.W, H: scr.H, Role: a.role(), Time: time.Now().Unix()}
-	if a.cli != nil {
-		b.Connected = a.cli.Connected()
-	}
+		W: scr.W, H: scr.H, Role: a.role(), Time: time.Now().Unix(), Connected: a.clientConnectedLocked()}
+	b.Port = a.inputPort
 	if a.key != nil {
 		sh := a.cfg.Shared.clone()
 		b.Shared = &sh
 	}
-	b = b.sign(a.key)
-	a.mu.Unlock()
+	raw, _ := json.Marshal(b.sign(a.key))
+	return raw
+}
 
-	raw, _ := json.Marshal(b)
-	for _, addr := range broadcastAddrs(DiscoveryPort) {
-		a.udp.WriteToUDP(raw, addr)
+func (a *Agent) sendBeacon() {
+	raw := a.beaconBytes()
+	if a.udp != nil {
+		for _, addr := range broadcastAddrs(DiscoveryPort) {
+			a.udp.WriteToUDP(raw, addr)
+		}
 	}
+	a.mu.Lock()
+	for l := range a.links {
+		go a.sendLinkBeacon(l, raw)
+	}
+	a.mu.Unlock()
 }
 
 func (a *Agent) receiveBeacons() {
@@ -145,10 +189,17 @@ func (a *Agent) receiveBeacons() {
 		if json.Unmarshal(buf[:n], &b) != nil || b.App != beaconApp || b.ID == "" {
 			continue
 		}
+		a.handleBeacon(b, from.IP)
+	}
+}
+
+// handleBeacon records a peer seen via UDP broadcast or a manual link.
+func (a *Agent) handleBeacon(b Beacon, ip net.IP) {
+	{
 		a.mu.Lock()
 		if b.ID == a.cfg.ID {
 			a.mu.Unlock()
-			continue
+			return
 		}
 		trusted := b.verify(a.key)
 		p := a.peers[b.ID]
@@ -157,7 +208,7 @@ func (a *Agent) receiveBeacons() {
 			p = &peer{}
 			a.peers[b.ID] = p
 		}
-		p.Beacon, p.IP, p.LastSeen, p.Trusted = b, from.IP, time.Now(), trusted
+		p.Beacon, p.IP, p.LastSeen, p.Trusted = b, ip, time.Now(), trusted
 		adopted := false
 		if trusted && b.Shared != nil && b.Shared.newerThan(a.cfg.Shared) {
 			a.cfg.Shared = b.Shared.clone()
@@ -166,7 +217,7 @@ func (a *Agent) receiveBeacons() {
 		}
 		a.mu.Unlock()
 		if isNew {
-			log.Printf("found %s (%s, %s) trusted=%v", b.Name, b.OS, from.IP, trusted)
+			log.Printf("found %s (%s, %s) trusted=%v", b.Name, b.OS, ip, trusted)
 		}
 		if adopted {
 			log.Printf("adopted group config #%d from %s (host=%s)", b.Shared.Epoch, b.Name, b.Shared.Host)
@@ -194,15 +245,22 @@ func (a *Agent) reconcile() {
 
 	if sh.Host == a.cfg.ID && a.cfg.Password != "" {
 		a.stopClientLocked()
+		a.stopReverseLocked()
 		a.autoPlaceLocked()
 		a.srv.SetActive(true)
 		a.startCaptureLocked()
+		a.reverseDialLocked()
 		return
 	}
 	a.srv.SetActive(false)
+	if sh.Host == "" {
+		a.stopReverseLocked()
+	}
 
+	// A host that reaches us through a link it opened cannot be dialed: it
+	// opens the input session to us instead (see acceptReverse).
 	var target string
-	if p := a.peers[sh.Host]; p != nil && p.Trusted && p.online() {
+	if p := a.peers[sh.Host]; p != nil && p.Trusted && p.online() && !a.incomingLinkFromLocked(sh.Host) {
 		target = net.JoinHostPort(p.IP.String(), strconv.Itoa(p.Port))
 	}
 	if target != a.cliTarget {
@@ -222,6 +280,13 @@ func p0(p *peer) peer {
 		return peer{}
 	}
 	return *p
+}
+
+func (a *Agent) stopReverseLocked() {
+	if a.revCli != nil {
+		go a.revCli.Stop()
+		a.revCli = nil
+	}
 }
 
 func (a *Agent) stopClientLocked() {
@@ -331,6 +396,9 @@ type Status struct {
 	SwapCmdCtrl   bool         `json:"swapCmdCtrl"`
 	ShareClip     bool         `json:"shareClipboard"`
 	ClipProblem   string       `json:"clipboardProblem,omitempty"`
+	ManualPeers   []string     `json:"manualPeers"`
+	Links         []LinkInfo   `json:"links"`
+	LocalIPs      []string     `json:"localIPs"`
 	Speed         float64      `json:"speed"`
 	ConnectedToMe []string     `json:"connectedToMe"`
 }
@@ -348,15 +416,30 @@ func (a *Agent) Status() Status {
 	scr := a.inj.Screen()
 	self := DeviceInfo{ID: a.cfg.ID, Name: a.cfg.Name, OS: runtime.GOOS, Self: true, Online: true, Trusted: a.key != nil,
 		Role: a.role(), W: scr.W, H: scr.H, Cell: cell(a.cfg.ID)}
-	if a.cli != nil {
-		self.Connected = a.cli.Connected()
-	}
+	self.Connected = a.clientConnectedLocked()
 	st := Status{Self: self, HasPassword: a.cfg.Password != "", Host: sh.Host, CaptureError: a.captureErr,
 		SwapCmdCtrl: a.cfg.SwapCmdCtrl, Speed: a.cfg.Speed, ConnectedToMe: a.srv.Connected(),
 		ShareClip: a.cfg.ShareClipboard, ClipProblem: clipboard.Problem(),
 		PermissionOK: capture.Trusted(false), Version: a.version}
 	if a.cli != nil {
 		st.ClientError = a.cli.LastError()
+	}
+	st.ManualPeers = append([]string{}, a.cfg.ManualPeers...)
+	st.LocalIPs = LocalIPs()
+	for _, addr := range a.cfg.ManualPeers {
+		info, ok := a.linkState[addr]
+		if !ok {
+			info = LinkInfo{Addr: addr, State: "connecting"}
+		}
+		for l := range a.links {
+			if l.outgoing && l.addr == addr {
+				info.State, info.Error = "connected", ""
+				if p := a.peers[l.peerID]; p != nil {
+					info.Peer = p.Name
+				}
+			}
+		}
+		st.Links = append(st.Links, info)
 	}
 	st.Devices = append(st.Devices, self)
 	for id, p := range a.peers {

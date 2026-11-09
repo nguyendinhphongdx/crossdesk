@@ -158,6 +158,13 @@ func (s *Server) Handler(port string) http.Handler {
 		s.Agent.SetShareClipboard(b.Enabled)
 		return nil, nil
 	}))
+	mux.HandleFunc("POST /api/manual", s.api(func(r *http.Request) (any, error) {
+		var b struct{ Peers []string }
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			return nil, err
+		}
+		return nil, s.Agent.SetManualPeers(b.Peers)
+	}))
 	mux.HandleFunc("POST /api/show", s.api(func(r *http.Request) (any, error) {
 		if s.Show != nil {
 			s.Show()

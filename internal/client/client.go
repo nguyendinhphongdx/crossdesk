@@ -99,6 +99,29 @@ func (c *Client) runOnce() error {
 	if err != nil {
 		return err
 	}
+	return c.runConn(nc)
+}
+
+// StartConn runs a single session on a connection the host opened to us
+// (used when this machine cannot accept connections, only make them).
+// It does not reconnect; the host dials again if the link drops.
+func StartConn(cfg Config, inj inject.Injector, nc net.Conn) *Client {
+	c := &Client{cfg: cfg, inj: inj, stop: make(chan struct{}), done: make(chan struct{})}
+	go func() {
+		defer close(c.done)
+		err := c.runConn(nc)
+		c.connected.Store(false)
+		if err != nil {
+			c.lastErr.Store(err.Error())
+		}
+	}()
+	return c
+}
+
+// Done is closed when the client has stopped.
+func (c *Client) Done() <-chan struct{} { return c.done }
+
+func (c *Client) runConn(nc net.Conn) error {
 	if tc, ok := nc.(*net.TCPConn); ok {
 		tc.SetNoDelay(true)
 	}
