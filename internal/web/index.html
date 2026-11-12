@@ -22,6 +22,14 @@
   }
 }
 * { box-sizing: border-box; }
+/* Thin scrollbars that only show while the pointer is over the scrolling area
+   (WebView2 on Windows draws thick grey ones otherwise). */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background-color: transparent; border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+:hover::-webkit-scrollbar-thumb { background-color: color-mix(in srgb, var(--muted) 45%, transparent); }
+::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--muted) 75%, transparent); }
+::-webkit-scrollbar-button { display: none; height: 0; width: 0; }
 /* Rules like "all: unset; display: flex" would otherwise override [hidden]. */
 [hidden] { display: none !important; }
 html, body { height: 100%; }
@@ -69,7 +77,8 @@ input, textarea, pre { user-select: text; }
 .row { display: flex; align-items: center; gap: 16px; padding: 14px 18px; border-top: 1px solid var(--line); }
 .row:first-of-type { border-top: 0; }
 .row .lbl { flex: 1; min-width: 0; }
-.row .lbl b { display: block; font-weight: 550; font-size: 13.5px; }
+.row .lbl > b { display: block; font-weight: 550; font-size: 13.5px; }
+.row .lbl span b { font-weight: 600; color: var(--text); }
 .row .lbl span { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
 .muted { color: var(--muted); }
 
@@ -572,7 +581,7 @@ function renderSettings() {
       ? `<span class="badge ok">Đã kết nối${l.peer ? ' · ' + esc(l.peer) : ''}</span>`
       : l.state === 'error' ? '<span class="badge bad">Lỗi</span>' : '<span class="badge warn">Đang kết nối…</span>';
     return `<li><code>${esc(l.addr)}</code>${badge}<span class="err">${l.state === 'error' && l.error ? esc(l.error) : ''}</span>
-      <span style="flex:1"></span><button class="btn" data-act="manual-del" data-addr="${esc(l.addr)}">Xoá</button></li>`;
+      <span style="flex:1"></span><button class="btn" data-act="reconnect" data-addr="${esc(l.addr)}">Kết nối lại</button><button class="btn" data-act="manual-del" data-addr="${esc(l.addr)}">Xoá</button></li>`;
   }).join(''));
   const os = st.self.os;
   $('permCard').hidden = os === 'windows';
@@ -644,7 +653,9 @@ function render() {
   }
   if (page === 'about') $('aboutVersion').textContent = 'Phiên bản ' + st.version + (st.update && st.update.available ? ' · có bản mới ' + st.update.latest : '');
   renderUpdate();
-  setHTML('headActions', page === 'devices' && st.host ? '<button class="btn" data-host="">Dừng chia sẻ</button>' : '');
+  setHTML('headActions', page === 'devices'
+    ? '<button class="btn" data-act="reconnect" data-addr="" title="Ngắt và kết nối lại tới các máy khác">Kết nối lại</button>' + (st.host ? '<button class="btn" data-host="">Dừng chia sẻ</button>' : '')
+    : '');
 }
 
 async function refresh() {
@@ -687,6 +698,12 @@ document.addEventListener('click', (e) => {
         .then(() => { $('manualInput').value = ''; toast('Đang kết nối tới ' + v + '…'); refresh(); })
         .catch((err) => toast(err.message));
     }
+    case 'reconnect':
+      b.disabled = true;
+      return api('reconnect', { Addr: b.dataset.addr || '' })
+        .then(() => { toast('Đang kết nối lại…'); refresh(); })
+        .catch((err) => toast(err.message))
+        .finally(() => setTimeout(() => { b.disabled = false; }, 1500));
     case 'manual-del':
       return api('manual', { Peers: (st.manualPeers || []).filter((a) => a !== b.dataset.addr) })
         .then(() => { toast('Đã xoá'); refresh(); }).catch((err) => toast(err.message));

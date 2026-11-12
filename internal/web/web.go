@@ -158,6 +158,14 @@ func (s *Server) Handler(port string) http.Handler {
 		s.Agent.SetShareClipboard(b.Enabled)
 		return nil, nil
 	}))
+	mux.HandleFunc("POST /api/reconnect", s.api(func(r *http.Request) (any, error) {
+		var b struct{ Addr string }
+		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {
+			return nil, err
+		}
+		s.Agent.Reconnect(b.Addr)
+		return nil, nil
+	}))
 	mux.HandleFunc("POST /api/manual", s.api(func(r *http.Request) (any, error) {
 		var b struct{ Peers []string }
 		if err := json.NewDecoder(r.Body).Decode(&b); err != nil {

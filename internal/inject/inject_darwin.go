@@ -1,8 +1,30 @@
 package inject
 
 /*
-#cgo LDFLAGS: -framework ApplicationServices -framework CoreFoundation
+#cgo LDFLAGS: -framework ApplicationServices -framework CoreFoundation -framework IOKit
 #include <ApplicationServices/ApplicationServices.h>
+#include <IOKit/IOKitLib.h>
+#include <IOKit/hidsystem/IOHIDLib.h>
+#include <IOKit/hidsystem/IOHIDParameter.h>
+
+// Synthetic Caps Lock key events do not toggle the system Caps Lock state on
+// macOS, so it is read and set through the HID system (like Karabiner does).
+// Returns the state, or -1 if it cannot be read.
+static int capsLock(int set, int on) {
+	io_service_t svc = IOServiceGetMatchingService(MACH_PORT_NULL, IOServiceMatching(kIOHIDSystemClass));
+	if (!svc) return -1;
+	io_connect_t conn;
+	kern_return_t kr = IOServiceOpen(svc, mach_task_self(), kIOHIDParamConnectType, &conn);
+	IOObjectRelease(svc);
+	if (kr != KERN_SUCCESS) return -1;
+	bool state = false;
+	if (set) {
+		IOHIDSetModifierLockState(conn, kIOHIDCapsLockState, on ? true : false);
+	}
+	kr = IOHIDGetModifierLockState(conn, kIOHIDCapsLockState, &state);
+	IOServiceClose(conn);
+	return kr == KERN_SUCCESS ? (state ? 1 : 0) : -1;
+}
 
 static void mainBounds(double *x, double *y, double *w, double *h) {
 	CGRect r = CGDisplayBounds(CGMainDisplayID());
@@ -62,6 +84,7 @@ type darwin struct {
 	lastClick time.Time
 	lastBtn   int
 	clicks    int
+	caps      bool // Caps Lock state, mirrored from the system
 }
 
 func New() (Injector, error) {
@@ -74,15 +97,42 @@ func (d *darwin) Screen() Screen {
 	var x, y, w, h C.double
 	C.mainBounds(&x, &y, &w, &h)
 	d.ox, d.oy = float64(x), float64(y)
+	if v := C.capsLock(0, 0); v >= 0 { // the user may have toggled it locally
+		d.caps = v == 1
+	}
 	return Screen{X: int32(x), Y: int32(y), W: int32(w), H: int32(h)}
 }
+
+const flagAlphaShift = 0x10000 // kCGEventFlagMaskAlphaShift (Caps Lock on)
 
 func (d *darwin) flags() uint64 {
 	var f uint64 = 0x100 // NX_NONCOALSESCEDMASK-ish "non-coalesced" bit macOS sets on real events
 	for k := range d.held {
 		f |= modFlags[k]
 	}
+	if d.caps {
+		f |= flagAlphaShift
+	}
 	return f
+}
+
+// toggleCaps flips the system Caps Lock (and its LED) and remembers it so the
+// letters we type next come out in the right case.
+func (d *darwin) toggleCaps() {
+	cur := C.capsLock(0, 0)
+	if cur < 0 {
+		d.caps = !d.caps // HID system unavailable: at least fix our own events
+		return
+	}
+	want := 1
+	if cur == 1 {
+		want = 0
+	}
+	if got := C.capsLock(1, C.int(want)); got >= 0 {
+		d.caps = got == 1
+	} else {
+		d.caps = want == 1
+	}
 }
 
 // CGEventType constants.
@@ -144,6 +194,12 @@ func (d *darwin) Wheel(dx, dy int32) {
 }
 
 func (d *darwin) Key(hid uint16, down bool) {
+	if hid == keymap.HIDCapsLock {
+		if down {
+			d.toggleCaps()
+		}
+		return
+	}
 	code, ok := keymap.HIDToMac(hid)
 	if !ok {
 		return

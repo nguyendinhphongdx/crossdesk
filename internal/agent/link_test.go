@@ -123,6 +123,14 @@ func TestManualLinkOneWayNetwork(t *testing.T) {
 	}
 	eventually(t, "pc controlled by mac", func() bool { return hasConnected(mac, "pc") })
 	eventually(t, "pc reports connected", func() bool { return pc.Status().Self.Connected })
+
+	// "Kết nối lại": everything drops and comes back by itself.
+	pc.Reconnect("")
+	eventually(t, "link back after reconnect", func() bool {
+		st := pc.Status()
+		return len(st.Links) == 1 && st.Links[0].State == "connected"
+	})
+	eventually(t, "session back after reconnect", func() bool { return hasConnected(mac, "pc") && pc.Status().Self.Connected })
 }
 
 func TestManualLinkWrongPassword(t *testing.T) {

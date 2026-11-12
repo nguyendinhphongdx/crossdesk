@@ -41,6 +41,7 @@ type link struct {
 	ip       net.IP
 	outgoing bool
 	peerID   string // learned from the first beacon
+	dropped  bool   // closed on purpose (reconnect / removed), not an error
 }
 
 type LinkInfo struct {
@@ -155,7 +156,10 @@ func (a *Agent) runLink(l *link) {
 	a.mu.Lock()
 	delete(a.links, l)
 	a.mu.Unlock()
-	if l.outgoing {
+	a.mu.Lock()
+	dropped := l.dropped
+	a.mu.Unlock()
+	if l.outgoing && !dropped {
 		msg := "mất kết nối"
 		if errors.Is(err, proto.ErrAuth) {
 			msg = "sai mật khẩu nhóm"
@@ -317,6 +321,30 @@ func (a *Agent) reverseDial(addr, id string) {
 	a.srv.ServeConn(c) // blocks for the whole session
 }
 
+// Reconnect drops and re-establishes connections: one manual link (addr),
+// or everything (addr == ""): manual links and the session with the host.
+func (a *Agent) Reconnect(addr string) {
+	a.mu.Lock()
+	for l := range a.links {
+		if l.outgoing && (addr == "" || l.addr == addr) {
+			l.dropped = true
+			l.conn.Close()
+		}
+	}
+	for k := range a.linkState {
+		if addr == "" || k == addr {
+			a.linkState[k] = LinkInfo{Addr: k, State: "connecting"}
+		}
+	}
+	if addr == "" {
+		a.stopClientLocked() // reconcile starts it again on the next tick
+		a.stopReverseLocked()
+	}
+	a.mu.Unlock()
+	log.Printf("reconnecting %s", map[bool]string{true: "everything", false: addr}[addr == ""])
+	a.poke()
+}
+
 // SetManualPeers replaces the list of manual addresses.
 func (a *Agent) SetManualPeers(in []string) error {
 	if len(in) > maxManual {
@@ -338,6 +366,7 @@ func (a *Agent) SetManualPeers(in []string) error {
 	a.cfg.ManualPeers = out
 	for l := range a.links {
 		if l.outgoing && !seen[l.addr] {
+			l.dropped = true
 			l.conn.Close()
 		}
 	}

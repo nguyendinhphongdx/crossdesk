@@ -151,7 +151,7 @@ func TestCheckAndChecksum(t *testing.T) {
 		t.Fatalf("status %+v", st)
 	}
 	// Verify the download + checksum path without applying.
-	want, err := u.expectedSum(srv.URL+"/sums", AssetName())
+	want, err := u.expectedSum(asset{URL: srv.URL + "/sums"}, AssetName())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,6 +183,9 @@ func TestCheckHost(t *testing.T) {
 	if checkHost("https://github.com/x/y/releases/download/v1/a.zip") != nil {
 		t.Fatal("github should be allowed")
 	}
+	if checkHost("https://api.github.com/repos/x/y/releases/assets/1") != nil {
+		t.Fatal("API asset URL should be allowed")
+	}
 	if checkHost("https://objects.githubusercontent.com/x") != nil {
 		t.Fatal("asset CDN should be allowed")
 	}
@@ -200,5 +203,44 @@ func TestAfterUpdateEnv(t *testing.T) {
 	}
 	if AfterUpdate() {
 		t.Fatal("marker must be cleared so child processes don't inherit it")
+	}
+}
+
+func TestDownloadFallsBackWhenGitHubErrors(t *testing.T) {
+	old := retryDelays
+	retryDelays = []time.Duration{0, time.Millisecond}
+	defer func() { retryDelays = old }()
+	primaryHits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/download":
+			primaryHits++
+			http.Error(w, "gateway timeout", http.StatusGatewayTimeout)
+		case "/api":
+			if r.Header.Get("Accept") != "application/octet-stream" {
+				http.Error(w, "want octet-stream", http.StatusBadRequest)
+				return
+			}
+			w.Write([]byte("payload"))
+		}
+	}))
+	defer srv.Close()
+	u := New("v1.0.0", t.TempDir(), nil)
+	u.apiBase = srv.URL
+	sum, err := u.download(asset{URL: srv.URL + "/download", APIURL: srv.URL + "/api"}, filepath.Join(t.TempDir(), "f"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if primaryHits != len(retryDelays) {
+		t.Fatalf("primary URL tried %d times, want %d", primaryHits, len(retryDelays))
+	}
+	want := sha256.Sum256([]byte("payload"))
+	if sum != hex.EncodeToString(want[:]) {
+		t.Fatal("wrong content from fallback")
+	}
+	// Both sources failing gives a friendly message.
+	_, err = u.download(asset{URL: srv.URL + "/download"}, filepath.Join(t.TempDir(), "g"))
+	if err == nil || !strings.Contains(err.Error(), "thử lại sau") {
+		t.Fatalf("expected friendly error, got %v", err)
 	}
 }

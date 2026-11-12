@@ -59,9 +59,10 @@ type Status struct {
 }
 
 type asset struct {
-	Name string `json:"name"`
-	URL  string `json:"browser_download_url"`
-	Size int64  `json:"size"`
+	Name   string `json:"name"`
+	URL    string `json:"browser_download_url"`
+	APIURL string `json:"url"` // same file through the API, used as a fallback
+	Size   int64  `json:"size"`
 }
 
 type release struct {
@@ -271,7 +272,7 @@ func (u *Updater) install(rel *release) error {
 	if !ok {
 		return errors.New("bản phát hành thiếu SHA256SUMS.txt")
 	}
-	want, err := u.expectedSum(sums.URL, name)
+	want, err := u.expectedSum(sums, name)
 	if err != nil {
 		return err
 	}
@@ -307,13 +308,48 @@ func (u *Updater) install(rel *release) error {
 // Only follow links that GitHub hands out for release assets.
 func checkHost(raw string) error {
 	p, err := url.Parse(raw)
-	if err != nil || p.Scheme != "https" || (p.Host != "github.com" && !strings.HasSuffix(p.Host, ".githubusercontent.com")) {
+	if err != nil || p.Scheme != "https" || (p.Host != "github.com" && p.Host != "api.github.com" && !strings.HasSuffix(p.Host, ".githubusercontent.com")) {
 		return fmt.Errorf("đường dẫn tải không hợp lệ: %s", raw)
 	}
 	return nil
 }
 
-func (u *Updater) get(raw string) (*http.Response, error) {
+// retryDelays: GitHub's download endpoint sometimes answers 5xx for a few
+// minutes; each URL is tried a few times before falling back to the next.
+var retryDelays = []time.Duration{0, 2 * time.Second, 5 * time.Second}
+
+// fetch downloads an asset, retrying its normal URL and then the API URL.
+func (u *Updater) fetch(a asset) (*http.Response, error) {
+	var lastErr error
+	for _, src := range []struct{ url, accept string }{{a.URL, ""}, {a.APIURL, "application/octet-stream"}} {
+		if src.url == "" {
+			continue
+		}
+		for _, d := range retryDelays {
+			time.Sleep(d)
+			resp, err := u.get(src.url, src.accept)
+			if err == nil {
+				return resp, nil
+			}
+			lastErr = err
+			var he *httpError
+			if errors.As(err, &he) && he.code < 500 {
+				break // not a temporary server error: try the next source
+			}
+		}
+	}
+	return nil, fmt.Errorf("GitHub tạm thời không phản hồi, hãy thử lại sau ít phút (%v)", lastErr)
+}
+
+type httpError struct {
+	url    string
+	code   int
+	status string
+}
+
+func (e *httpError) Error() string { return e.url + ": " + e.status }
+
+func (u *Updater) get(raw, accept string) (*http.Response, error) {
 	if u.apiBase == "https://api.github.com" {
 		if err := checkHost(raw); err != nil {
 			return nil, err
@@ -321,19 +357,22 @@ func (u *Updater) get(raw string) (*http.Response, error) {
 	}
 	req, _ := http.NewRequest("GET", raw, nil)
 	req.Header.Set("User-Agent", "crossdesk-updater")
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
 	resp, err := u.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
-		return nil, fmt.Errorf("%s: %s", raw, resp.Status)
+		return nil, &httpError{url: raw, code: resp.StatusCode, status: resp.Status}
 	}
 	return resp, nil
 }
 
-func (u *Updater) expectedSum(sumsURL, name string) (string, error) {
-	resp, err := u.get(sumsURL)
+func (u *Updater) expectedSum(sums asset, name string) (string, error) {
+	resp, err := u.fetch(sums)
 	if err != nil {
 		return "", err
 	}
@@ -369,7 +408,7 @@ func (p *progressWriter) Write(b []byte) (int, error) {
 }
 
 func (u *Updater) download(a asset, path string) (string, error) {
-	resp, err := u.get(a.URL)
+	resp, err := u.fetch(a)
 	if err != nil {
 		return "", err
 	}
