@@ -9,6 +9,9 @@ extern int goTapCallback(int type, int keycode, unsigned long long flags,
 	long long lineY, long long lineX, long long pointY, long long pointX, int continuous);
 
 static CFMachPortRef gTap = NULL;
+static CFRunLoopSourceRef gSrc = NULL;
+static CFRunLoopRef gLoop = NULL;
+static CGEventMask gMask = 0;
 
 static CGEventRef tapCB(CGEventTapProxy proxy, CGEventType type, CGEventRef ev, void *ref) {
 	if (type == kCGEventTapDisabledByTimeout || type == kCGEventTapDisabledByUserInput) {
@@ -41,14 +44,42 @@ static int runTap(void) {
 		CGEventMaskBit(kCGEventOtherMouseDragged) |
 		CGEventMaskBit(kCGEventKeyDown) | CGEventMaskBit(kCGEventKeyUp) |
 		CGEventMaskBit(kCGEventFlagsChanged) | CGEventMaskBit(kCGEventScrollWheel);
+	gMask = mask;
 	gTap = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
 		kCGEventTapOptionDefault, mask, tapCB, NULL);
 	if (!gTap) return -1;
-	CFRunLoopSourceRef src = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, gTap, 0);
-	CFRunLoopAddSource(CFRunLoopGetCurrent(), src, kCFRunLoopCommonModes);
+	gSrc = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, gTap, 0);
+	gLoop = CFRunLoopGetCurrent();
+	CFRunLoopAddSource(gLoop, gSrc, kCFRunLoopCommonModes);
 	CGEventTapEnable(gTap, true);
 	CFRunLoopRun();
 	return 0;
+}
+
+// Taps inserted at the head run newest-first. Keyboard tools that also use
+// event taps (OpenKey, EVKey for Mac...) may have been started after us;
+// re-inserting our tap puts it first again, so keys for the other machine
+// are taken before a local Vietnamese input method rewrites them.
+static void reinsertTap(void) {
+	if (!gLoop) return;
+	CFRunLoopPerformBlock(gLoop, kCFRunLoopCommonModes, ^{
+		CFMachPortRef t = CGEventTapCreate(kCGSessionEventTap, kCGHeadInsertEventTap,
+			kCGEventTapOptionDefault, gMask, tapCB, NULL);
+		if (!t) return;
+		CFRunLoopSourceRef s = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, t, 0);
+		CFRunLoopAddSource(gLoop, s, kCFRunLoopCommonModes);
+		CGEventTapEnable(t, true);
+		if (gTap) {
+			CGEventTapEnable(gTap, false);
+			CFRunLoopRemoveSource(gLoop, gSrc, kCFRunLoopCommonModes);
+			CFMachPortInvalidate(gTap);
+			CFRelease(gSrc);
+			CFRelease(gTap);
+		}
+		gTap = t;
+		gSrc = s;
+	});
+	CFRunLoopWakeUp(gLoop);
 }
 
 static int isTrusted(int prompt) {
@@ -224,6 +255,7 @@ func Run(h Handler) error {
 // Freeze stops the visible cursor from moving while still reporting deltas.
 func Freeze(f bool) {
 	if f {
+		C.reinsertTap()
 		C.freezeCursor(1)
 	} else {
 		C.freezeCursor(0)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"unsafe"
 
@@ -11,17 +12,20 @@ import (
 )
 
 var (
-	user32              = syscall.NewLazyDLL("user32.dll")
-	kernel32            = syscall.NewLazyDLL("kernel32.dll")
-	pSetWindowsHookEx   = user32.NewProc("SetWindowsHookExW")
-	pCallNextHookEx     = user32.NewProc("CallNextHookEx")
-	pGetMessage         = user32.NewProc("GetMessageW")
-	pGetCursorPos       = user32.NewProc("GetCursorPos")
-	pSetCursorPos       = user32.NewProc("SetCursorPos")
-	pGetSystemMetrics   = user32.NewProc("GetSystemMetrics")
-	pSetDPIAware        = user32.NewProc("SetProcessDPIAware")
-	pSetDpiAwarenessCtx = user32.NewProc("SetProcessDpiAwarenessContext")
-	pGetModuleHandle    = kernel32.NewProc("GetModuleHandleW")
+	user32               = syscall.NewLazyDLL("user32.dll")
+	kernel32             = syscall.NewLazyDLL("kernel32.dll")
+	pSetWindowsHookEx    = user32.NewProc("SetWindowsHookExW")
+	pCallNextHookEx      = user32.NewProc("CallNextHookEx")
+	pGetMessage          = user32.NewProc("GetMessageW")
+	pGetCursorPos        = user32.NewProc("GetCursorPos")
+	pSetCursorPos        = user32.NewProc("SetCursorPos")
+	pGetSystemMetrics    = user32.NewProc("GetSystemMetrics")
+	pSetDPIAware         = user32.NewProc("SetProcessDPIAware")
+	pSetDpiAwarenessCtx  = user32.NewProc("SetProcessDpiAwarenessContext")
+	pGetModuleHandle     = kernel32.NewProc("GetModuleHandleW")
+	pGetCurrentThreadId  = kernel32.NewProc("GetCurrentThreadId")
+	pUnhookWindowsHookEx = user32.NewProc("UnhookWindowsHookEx")
+	pPostThreadMessage   = user32.NewProc("PostThreadMessageW")
 )
 
 const (
@@ -97,19 +101,48 @@ func Run(h Handler) error {
 	last = cursorPos()
 	mu.Unlock()
 	mod, _, _ := pGetModuleHandle.Call(0)
-	mh, _, err1 := pSetWindowsHookEx.Call(whMouseLL, syscall.NewCallback(mouseProc), mod, 0)
-	kh, _, err2 := pSetWindowsHookEx.Call(whKeyboardLL, syscall.NewCallback(keyboardProc), mod, 0)
+	mouseCB, keyCB := syscall.NewCallback(mouseProc), syscall.NewCallback(keyboardProc)
+	mh, _, err1 := pSetWindowsHookEx.Call(whMouseLL, mouseCB, mod, 0)
+	kh, _, err2 := pSetWindowsHookEx.Call(whKeyboardLL, keyCB, mod, 0)
 	if mh == 0 || kh == 0 {
 		return errors.New("SetWindowsHookEx failed: " + errors.Join(err1, err2).Error())
 	}
-	var msg [64]byte
+	tid, _, _ := pGetCurrentThreadId.Call()
+	hookThread.Store(uint32(tid))
+	var m struct {
+		Hwnd    uintptr
+		Message uint32
+		WParam  uintptr
+		LParam  uintptr
+		Time    uint32
+		Pt      point
+		_       uint32
+	}
 	for {
-		r, _, _ := pGetMessage.Call(uintptr(unsafe.Pointer(&msg[0])), 0, 0, 0)
+		r, _, _ := pGetMessage.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
 		if int32(r) <= 0 {
 			return errors.New("message loop ended")
 		}
+		if m.Message == wmRehook {
+			// The most recently installed low-level hook runs first. Vietnamese
+			// input methods (Unikey, EVKey...) hook the keyboard too; moving our
+			// hook to the front means keys for the other machine are taken
+			// before the local input method rewrites them.
+			if nk, _, _ := pSetWindowsHookEx.Call(whKeyboardLL, keyCB, mod, 0); nk != 0 {
+				pUnhookWindowsHookEx.Call(kh)
+				kh = nk
+			}
+			if nm, _, _ := pSetWindowsHookEx.Call(whMouseLL, mouseCB, mod, 0); nm != 0 {
+				pUnhookWindowsHookEx.Call(mh)
+				mh = nm
+			}
+		}
 	}
 }
+
+const wmRehook = 0x8000 + 7 // WM_APP + 7
+
+var hookThread atomic.Uint32
 
 func next(nCode, wParam, lParam uintptr) uintptr {
 	r, _, _ := pCallNextHookEx.Call(0, nCode, wParam, lParam)
@@ -187,6 +220,11 @@ func keyboardProc(nCode, wParam, lParam uintptr) uintptr {
 // Freeze pins the cursor: while frozen, moves are swallowed so the cursor stays
 // where it is, and deltas are measured against that anchor.
 func Freeze(f bool) {
+	if f {
+		if tid := hookThread.Load(); tid != 0 {
+			pPostThreadMessage.Call(uintptr(tid), wmRehook, 0, 0)
+		}
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	frozen = f
